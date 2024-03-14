@@ -23,35 +23,42 @@ differences between these two markets, the strategy seeks to generate profits.
 1. Clone this repository:
 
    ```
-   git clone https://github.com/your-username/binance-futures-spot-arbitrage.git
+   git clone https://github.com/matrix-tang/Futures-Spot-Arbitrage-Binance-V1.git
    ```
 
-2. Install required Python packages:
+2. Obtain API keys from Binance with Futures and Spot trading permissions.
 
-   ```
-   pip install -r requirements.txt
-   ```
+3. Set up API keys in `config.tmol`:
 
-3. Obtain API keys from Binance with Futures and Spot trading permissions.
+   ```toml
+    [redis]
+    url = "redis://127.0.0.1:6379/"
 
-4. Set up API keys in `config.py`:
+    [mysql]
+    url = "mysql://root:123456@localhost:3306/arbitrage"
 
-   ```python
-   BINANCE_API_KEY = 'your_binance_api_key'
-   BINANCE_API_SECRET = 'your_binance_api_secret'
+    [binance_api_config]
+    api_key = ""
+    secret_key = ""
+
+    [log]
+    pattern = "console" # console/file 控制台/文件
+    dir = "logs"
+    prefix = "arb.log"
+    level = "INFO"
    ```
 
 ## Usage
 
 Run the main script to start monitoring and executing arbitrage opportunities:
 
-```
-python main.py
+```shell
+  cargo run
 ```
 
 ## Configuration
 
-Adjust configuration parameters in `config.py` according to your preferences and risk tolerance.
+Adjust configuration parameters in `config.toml` according to your preferences and risk tolerance.
 
 ## Disclaimer
 
@@ -63,10 +70,6 @@ Adjust configuration parameters in `config.py` according to your preferences and
 ## Contributing
 
 Contributions are welcome! Please feel free to open issues or submit pull requests to enhance the project.
-
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ---
 
