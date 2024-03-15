@@ -227,7 +227,7 @@ async fn positive(api: MyApi, strategy: model::ArbStrategy) -> anyhow::Result<()
             return Ok(());
         }
 
-        // transfer delivery to spot  划转币现货到币本位交割期货
+        // transfer delivery to spot  划转币本位交割期货到现货
         let transfer_delivery_to_spot_ex = arb_ex_map
             .get("transfer_delivery_to_spot")
             .ok_or(anyhow!("get arb_ex_map transfer_delivery_to_spot error"))?;
@@ -531,7 +531,7 @@ async fn reverse(api: MyApi, strategy: model::ArbStrategy) -> anyhow::Result<()>
 
                 return Ok(());
             }
-            info!("close: {}, {}", to_market_buy_key, from_market_sell_key);
+            // info!("close: {}, {}", to_market_buy_key, from_market_sell_key);
         }
     }
 
