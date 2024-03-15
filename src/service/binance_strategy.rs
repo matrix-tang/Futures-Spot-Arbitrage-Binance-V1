@@ -369,10 +369,83 @@ async fn reverse(api: MyApi, strategy: model::ArbStrategy) -> anyhow::Result<()>
         // 开仓
         if diff_rate_info.diff_rate <= strategy.option_open {
             // from market buy 买入远期
-            let from_market_buy = format!("{}_buy-{}", strategy.from_market, strategy.from_symbol);
+            let from_market_buy_key =
+                format!("{}_buy-{}", strategy.from_market, strategy.from_symbol);
+            let from_market_buy_ex = arb_ex_map
+                .get(&from_market_buy_key)
+                .ok_or(anyhow!("get arb_ex_map delivery buy error"))?;
+            if from_market_buy_ex.option_status != model::arb_strategy_ex::OPTION_STATUS_DONE {
+                // 判断执行顺序
+                if arb_strategy_done_count != 0 {
+                    return Err(anyhow!(
+                        "done count err, {:?}, count: {}",
+                        from_market_buy_key,
+                        arb_strategy_done_count
+                    ));
+                }
+                // 计算可开张数
+                let cont = from_market_buy_ex
+                    .option_amount
+                    .mul(diff_rate_info.from_price)
+                    .div(Decimal::from(strategy.contract_mul));
+                let contract_num = cont.ceil().sub(Decimal::from(1));
+                let mut price = diff_rate_info.from_price.add(strategy.fok_diff);
+                price.rescale(strategy.from_price_truncate as u32);
+                let _ = delivery_order_update(
+                    api,
+                    strategy.to_symbol.clone(),
+                    OrderSide::Buy,
+                    OrderType::Limit,
+                    "delivery_buy".to_string(),
+                    price,
+                    contract_num,
+                    &strategy,
+                    from_market_buy_ex,
+                )
+                .await?;
+
+                return Ok(());
+            }
+
             // to market sell 卖出永续
-            let to_market_sell = format!("{}_sell-{}", strategy.to_market, strategy.to_symbol);
-            info!("open: {}, {}", from_market_buy, to_market_sell);
+            let to_market_sell_key = format!("{}_sell-{}", strategy.to_market, strategy.to_symbol);
+            let to_market_sell_ex = arb_ex_map
+                .get(&from_market_buy_key)
+                .ok_or(anyhow!("get arb_ex_map delivery sell error"))?;
+            if to_market_sell_ex.option_status != model::arb_strategy_ex::OPTION_STATUS_DONE {
+                // 判断执行顺序
+                if arb_strategy_done_count != 1 {
+                    return Err(anyhow!(
+                        "done count err, {:?}, count: {}",
+                        to_market_sell_key,
+                        arb_strategy_done_count
+                    ));
+                }
+                // 计算可开张数
+                let cont = to_market_sell_ex
+                    .option_amount
+                    .mul(diff_rate_info.to_price)
+                    .div(Decimal::from(strategy.contract_mul));
+                let contract_num = cont.ceil().sub(Decimal::from(1));
+                let mut price = diff_rate_info.from_price.sub(strategy.fok_diff);
+                price.rescale(strategy.to_price_truncate as u32);
+                let _ = delivery_order_update(
+                    api,
+                    strategy.to_symbol.clone(),
+                    OrderSide::Sell,
+                    OrderType::Limit,
+                    "delivery_sell".to_string(),
+                    price,
+                    contract_num,
+                    &strategy,
+                    to_market_sell_ex,
+                )
+                .await?;
+
+                return Ok(());
+            }
+
+            info!("open: {}, {}", from_market_buy_key, to_market_sell_key);
         }
         // 平仓
         if diff_rate_info.diff_rate >= strategy.option_close {
