@@ -649,7 +649,7 @@ async fn spot_order_update(
     Ok(())
 }
 
-pub async fn delivery_order_update(
+async fn delivery_order_update(
     api: MyApi,
     symbol: String,
     order_side: OrderSide,
@@ -759,7 +759,7 @@ pub async fn delivery_order_update(
     Ok(())
 }
 
-pub async fn transfer_coin(
+async fn transfer_coin(
     api: MyApi,
     coin: String,
     transfer_type: UniversalTransferType,
