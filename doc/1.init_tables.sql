@@ -104,7 +104,7 @@ create table arbitrage.arb_strategy_ex
     reverse
     操作类型, spot_sell, transfer_spot_to_futures, futures_buy, futures_sell, transfer_futures_to_spot, spot_buy',
     option_status       tinyint     default 0  null comment '操作状态 0. 未完成、1. 已完成',
-    option_amount       decimal(20, 4)         null comment '操作数量',
+    option_amount       decimal(20, 4)         null comment '操作数量 现货、U本位期货代表数量，币本位代表合约张数',
     option_executed_amt decimal(20, 8)         null comment '已经执行数量',
     current_order_id    varchar(64)            null comment '当前执行操作的订单ID',
     created             int         default 0  null comment '创建时间',
@@ -130,7 +130,7 @@ create table arbitrage.arb_strategy_ex_info
     reverse
     操作类型, spot_sell, transfer_spot_to_futures, futures_buy, futures_sell, transfer_futures_to_spot, spot_buy',
     price              decimal(20, 4)         not null comment '价格',
-    amount             decimal(20, 8)         not null comment '数量，合约为张数',
+    amount             decimal(20, 8)         not null comment '数量 现货、U本位期货代表数量，币本位代表合约张数',
     executed_amt       decimal(20, 8)         null comment '真实执行数量',
     order_id           varchar(64)            null comment '委托单ID',
     is_ok              tinyint     default 0  not null comment '0 未完成 1 已完成 2 已失效',
