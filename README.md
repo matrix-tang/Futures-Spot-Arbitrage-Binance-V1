@@ -3,8 +3,7 @@
 The project includes arbitrage strategies between Binance futures and spot markets and stablecoin hedging arbitrage
 strategies.
 
-该项目包括币安期货和现货市场之间的套利策略以及稳定币对冲套利
-策略。
+该项目包括币安期货和现货市场之间的套利策略以及稳定币对冲套利策略。
 
 ## Features
 

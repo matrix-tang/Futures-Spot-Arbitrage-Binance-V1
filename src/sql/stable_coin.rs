@@ -28,7 +28,7 @@ pub async fn get_arb_stable_coin_info_list_by_stable_coin_id(
 
 pub async fn insert_arb_stable_coin_info(info: model::ArbStableCoinInfo) -> anyhow::Result<u64> {
     let last_insert_id = sqlx::query(
-        "insert into arb_stable_coin_info (stable_coin_id, user_id, platform, coin, market, symbol, option_type, price, amount, order_id, is_ok, created) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        "insert into arb_stable_coin_info (stable_coin_id, user_id, platform, coin, market, symbol, option_type, price, amount, order_id, is_ok, created) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
         .bind(info.stable_coin_id)
         .bind(info.user_id)
         .bind(info.platform)
