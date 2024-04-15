@@ -1,12 +1,15 @@
-use crate::binance::rest_model::{KlineSummaries, KlineSummary};
+use crate::binance::api::OrderRequest;
+use crate::binance::rest_model::{KlineSummaries, KlineSummary, OrderSide, OrderType, TimeInForce};
 use crate::binance::MyApi;
 use crate::{db, model, sql};
 use anyhow::anyhow;
-use log::error;
-use rust_decimal::prelude::FromPrimitive;
+use chrono::Local;
+use log::{error, info};
+use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use rust_decimal::Decimal;
 use std::collections::HashMap;
-use ta::indicators::{BollingerBands, BollingerBandsOutput};
+use std::ops::{Add, Sub};
+use ta::indicators::BollingerBands;
 use ta::Next;
 use tokio::select;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -141,11 +144,106 @@ async fn boll(api: MyApi, stable: model::ArbStableCoin) -> anyhow::Result<()> {
     low.rescale(stable.price_truncate as u32);
 
     let price = klines.last().ok_or(anyhow!("last price"))?.close;
-    let last_price = Decimal::from_f64(price).ok_or(anyhow!("decimal from f64 price"))?;
+    let mut last_price = Decimal::from_f64(price).ok_or(anyhow!("decimal from f64 price"))?;
+    last_price.rescale(stable.price_truncate as u32);
 
-    // 策略，price < 1 && price <= lastDn buy -> price >= lastUp sell
+    // 策略，price < 1 && price <= low buy -> price >= upp sell
     // 获取stable_coin_info 表最后1条数据状态
+    let info_list = sql::get_arb_stable_coin_info_list_by_stable_coin_id(stable.id, 1).await?;
+    // 表为空或者上一条记录为sell
+    if info_list.is_empty() || info_list[0].option_type == "sell" {
+        if last_price.lt(&Decimal::from(1)) && last_price.le(&low) {
+            let mut price = last_price.add(stable.fok_diff);
+            price.rescale(stable.price_truncate as u32);
+            let mut amount = stable.option_amt;
+            amount.rescale(stable.amt_truncate as u32);
+            let tran = api
+                .place_order(OrderRequest {
+                    symbol: stable.symbol.clone(),
+                    quantity: Some(amount.to_f64().ok_or(anyhow!(""))?),
+                    price: Some(price.to_f64().ok_or(anyhow!(""))?),
+                    order_type: OrderType::Limit,
+                    side: OrderSide::Buy,
+                    time_in_force: Some(TimeInForce::FOK),
+                    ..OrderRequest::default()
+                })
+                .await?;
+            let last_id = sql::insert_arb_stable_coin_info(model::ArbStableCoinInfo {
+                id: 0,
+                stable_coin_id: stable.id,
+                user_id: stable.user_id,
+                platform: stable.platform,
+                coin: stable.coin,
+                market: stable.market,
+                symbol: stable.symbol,
+                option_type: "buy".to_string(),
+                price,
+                amount,
+                order_id: tran.order_id.to_string(),
+                is_ok: model::arb_stable_coin_info::IS_OK_COMPLETED,
+                created: Some(Local::now().timestamp()),
+                updated: None,
+                bak: None,
+            })
+            .await?;
 
+            info!(
+                "--------------- boll, up: {:?}, dn: {:?}, current price: {:?}",
+                upp, low, price
+            );
+            info!(
+                "buy, amount: {:?}, orderId: {:?}, info table lastInsertId: {:?}",
+                stable.option_amt, tran.order_id, last_id
+            );
+        }
+    } else if info_list[0].option_type == "buy" {
+        if last_price.ge(&upp) {
+            let mut price = last_price.sub(stable.fok_diff);
+            price.rescale(stable.price_truncate as u32);
+            let mut amount = info_list[0].amount;
+            amount.rescale(stable.amt_truncate as u32);
+            let tran = api
+                .place_order(OrderRequest {
+                    symbol: stable.symbol.clone(),
+                    quantity: Some(amount.to_f64().ok_or(anyhow!(""))?),
+                    price: Some(price.to_f64().ok_or(anyhow!(""))?),
+                    order_type: OrderType::Limit,
+                    side: OrderSide::Sell,
+                    time_in_force: Some(TimeInForce::FOK),
+                    ..OrderRequest::default()
+                })
+                .await?;
+            let last_id = sql::insert_arb_stable_coin_info(model::ArbStableCoinInfo {
+                id: 0,
+                stable_coin_id: stable.id,
+                user_id: stable.user_id,
+                platform: stable.platform,
+                coin: stable.coin,
+                market: stable.market,
+                symbol: stable.symbol,
+                option_type: "sell".to_string(),
+                price,
+                amount,
+                order_id: tran.order_id.to_string(),
+                is_ok: model::arb_stable_coin_info::IS_OK_COMPLETED,
+                created: Some(Local::now().timestamp()),
+                updated: None,
+                bak: None,
+            })
+            .await?;
+
+            info!(
+                "--------------- boll, up: {:?}, dn: {:?}, current price: {:?}",
+                upp, low, price
+            );
+            info!(
+                "sell, amount: {:?}, orderId: {:?}, info table lastInsertId: {:?}",
+                info_list[0].amount, tran.order_id, last_id
+            );
+        }
+    }
+
+    println!("{:?}", info_list);
     println!(
         "up: {:?} dn: {:?} count: {:?} price: {:?}",
         upp,
