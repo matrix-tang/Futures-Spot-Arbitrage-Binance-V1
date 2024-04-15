@@ -16,7 +16,7 @@ differences between these two markets, the strategy seeks to generate profits.
 
 - Rust 1.78.0-nightly
 - Binance API keys with Futures and Spot trading permissions
-- Rust libraries: `reqwest`, `tokio`, `binance-rs-async` ..
+- Rust libraries: `reqwest`, `tokio`, `binance-rs-async`, `rocksdb`, `bincode` ..
 
 ## Setup
 
@@ -36,6 +36,9 @@ differences between these two markets, the strategy seeks to generate profits.
 
     [mysql]
     url = "mysql://root:123456@localhost:3306/arbitrage"
+   
+    [rocksdb]
+    path = "_path_for_rocksdb_storage"
 
     [binance_api_config]
     api_key = ""
@@ -53,7 +56,10 @@ differences between these two markets, the strategy seeks to generate profits.
 Run the main script to start monitoring and executing arbitrage opportunities:
 
 ```shell
-  cargo run
+  // run arbitrage 
+  cargo run --bin arbitrage
+  // run stable coin hedging
+  cargo run --bin hedging
 ```
 
 ## Configuration

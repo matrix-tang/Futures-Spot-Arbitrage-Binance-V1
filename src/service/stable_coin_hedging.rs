@@ -2,11 +2,12 @@ use crate::binance::rest_model::{KlineSummaries, KlineSummary};
 use crate::binance::MyApi;
 use crate::{db, model, sql};
 use anyhow::anyhow;
-use dashmap::DashMap;
-use lazy_static::lazy_static;
 use log::error;
+use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::Decimal;
 use std::collections::HashMap;
-use std::sync::Arc;
+use ta::indicators::{BollingerBands, BollingerBandsOutput};
+use ta::Next;
 use tokio::select;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
@@ -50,7 +51,7 @@ pub async fn event_stable_coin_start(rxs: HashMap<i64, UnboundedReceiver<model::
 async fn boll(api: MyApi, stable: model::ArbStableCoin) -> anyhow::Result<()> {
     // 初始化K线数据
     let kline_key = stable.symbol.clone() + "_15m";
-    let kline_interval = "1m";
+    let kline_interval = "15m";
 
     let mut klines: Vec<KlineSummary> = Vec::new();
     if let Some(en) = db::get_db()?.rocksdb().get(kline_key.clone())? {
@@ -120,7 +121,38 @@ async fn boll(api: MyApi, stable: model::ArbStableCoin) -> anyhow::Result<()> {
         }
     }
 
-    println!("{:?} {:?}", klines.len(), klines.last());
+    // 计算Boll
+    let mut bb = BollingerBands::new(20, 2.0_f64)?;
+    // let mut average = 0.0;
+    let mut upper = 0.0;
+    let mut lower = 0.0;
+    for k in klines.clone() {
+        let out = bb.next(k.close);
+        // average = out.average;
+        upper = out.upper;
+        lower = out.lower;
+    }
+
+    let mut upp = Decimal::from_f64(upper).ok_or(anyhow!("decimal from f64 upp"))?;
+    upp.rescale(stable.price_truncate as u32);
+    /*let mut avg = Decimal::from_f64(average).ok_or(anyhow!(""))?;
+    avg.rescale(stable.price_truncate as u32);*/
+    let mut low = Decimal::from_f64(lower).ok_or(anyhow!("decimal from f64 low"))?;
+    low.rescale(stable.price_truncate as u32);
+
+    let price = klines.last().ok_or(anyhow!("last price"))?.close;
+    let last_price = Decimal::from_f64(price).ok_or(anyhow!("decimal from f64 price"))?;
+
+    // 策略，price < 1 && price <= lastDn buy -> price >= lastUp sell
+    // 获取stable_coin_info 表最后1条数据状态
+
+    println!(
+        "up: {:?} dn: {:?} count: {:?} price: {:?}",
+        upp,
+        low,
+        klines.len(),
+        last_price
+    );
 
     Ok(())
 }
