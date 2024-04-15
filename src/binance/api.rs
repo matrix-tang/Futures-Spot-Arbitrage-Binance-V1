@@ -2,8 +2,9 @@ use crate::binance::client::Client;
 use crate::binance::config::Config;
 use crate::binance::errors::*;
 use crate::binance::rest_model::*;
-use crate::binance::util::build_signed_request_p;
+use crate::binance::util::{build_request, build_signed_request_p, to_f64, to_i64};
 use crate::conf::C;
+use serde_json::Value;
 
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -109,6 +110,56 @@ impl MyApi {
 
     pub async fn get_server_time(&self) -> Result<ServerTime> {
         self.client.get("/api/v3/time", None).await
+    }
+
+    pub async fn get_klines<S1, S2, S3, S4, S5>(
+        &self,
+        symbol: S1,
+        interval: S2,
+        limit: S3,
+        start_time: S4,
+        end_time: S5,
+    ) -> Result<KlineSummaries>
+    where
+        S1: Into<String>,
+        S2: Into<String>,
+        S3: Into<Option<u16>>,
+        S4: Into<Option<u64>>,
+        S5: Into<Option<u64>>,
+    {
+        let parameters = IntoIterator::into_iter([
+            Some(("symbol", symbol.into())),
+            Some(("interval", interval.into())),
+            limit.into().map(|l| ("limit", l.to_string())),
+            start_time.into().map(|s| ("startTime", s.to_string())),
+            end_time.into().map(|e| ("endTime", e.to_string())),
+        ])
+        .flatten();
+
+        let request = build_request(parameters);
+
+        let parsed_data: Vec<Vec<Value>> =
+            self.client.get("/api/v3/klines", Some(&request)).await?;
+
+        let klines = KlineSummaries::AllKlineSummaries(
+            parsed_data
+                .iter()
+                .map(|row| KlineSummary {
+                    open_time: to_i64(&row[0]),
+                    open: to_f64(&row[1]),
+                    high: to_f64(&row[2]),
+                    low: to_f64(&row[3]),
+                    close: to_f64(&row[4]),
+                    volume: to_f64(&row[5]),
+                    close_time: to_i64(&row[6]),
+                    quote_asset_volume: to_f64(&row[7]),
+                    number_of_trades: to_i64(&row[8]),
+                    taker_buy_base_asset_volume: to_f64(&row[9]),
+                    taker_buy_quote_asset_volume: to_f64(&row[10]),
+                })
+                .collect(),
+        );
+        Ok(klines)
     }
 
     pub async fn universal_transfer(

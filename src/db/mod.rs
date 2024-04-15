@@ -1,13 +1,17 @@
 use crate::conf;
 use anyhow::anyhow;
 use once_cell::sync::OnceCell;
+use rocksdb::{DBWithThreadMode, MultiThreaded, SingleThreaded, DB};
 use sqlx::mysql::MySqlPoolOptions;
 use sqlx::MySqlPool;
+use std::sync::Arc;
+use tokio::fs::remove_dir_all;
 
 #[derive(Debug, Clone)]
 pub struct Db {
     db_pool: MySqlPool,
     redis: redis::Client,
+    rocksdb: Arc<DBWithThreadMode<SingleThreaded>>,
 }
 
 pub static DBV1: OnceCell<Db> = OnceCell::new();
@@ -34,7 +38,18 @@ impl Db {
             .connect(conf::C.mysql.url.as_str())
             .await?;
         let redis = redis::Client::open(conf::C.redis.url.as_str())?;
-        Ok(Self { db_pool, redis })
+
+        remove_dir_all(&conf::C.rocksdb.path).await?;
+        let rocksdb = Arc::new(DB::open_default(&conf::C.rocksdb.path).unwrap());
+        Ok(Self {
+            db_pool,
+            redis,
+            rocksdb,
+        })
+    }
+
+    pub fn rocksdb(&self) -> &Arc<DBWithThreadMode<SingleThreaded>> {
+        &self.rocksdb
     }
 
     pub fn database(&self) -> &MySqlPool {

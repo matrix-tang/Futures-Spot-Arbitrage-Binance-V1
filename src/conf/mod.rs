@@ -20,6 +20,11 @@ pub struct RedisConfig {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+pub struct RocksDbConfig {
+    pub path: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct MysqlConfig {
     pub url: String,
 }
@@ -34,6 +39,7 @@ pub struct BinanceApiConfig {
 pub struct Config {
     pub redis: RedisConfig,
     pub mysql: MysqlConfig,
+    pub rocksdb: RocksDbConfig,
     pub log: LogConfig,
     pub binance_api_config: BinanceApiConfig,
 }
@@ -62,5 +68,6 @@ mod tests {
         println!("{:#?}", c.redis.url);
         println!("{:#?}", c.mysql.url);
         println!("{:#?}", c.binance_api_config);
+        println!("{:?}", c.rocksdb.path);
     }
 }

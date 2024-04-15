@@ -409,3 +409,24 @@ pub(crate) mod string_or_bool {
         }
     }
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub enum KlineSummaries {
+    AllKlineSummaries(Vec<KlineSummary>),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct KlineSummary {
+    pub open_time: i64,
+    pub open: f64,
+    pub high: f64,
+    pub low: f64,
+    pub close: f64,
+    pub volume: f64,
+    pub close_time: i64,
+    pub quote_asset_volume: f64,
+    pub number_of_trades: i64,
+    pub taker_buy_base_asset_volume: f64,
+    pub taker_buy_quote_asset_volume: f64,
+}

@@ -2,3 +2,4 @@
 config.toml
 .idea
 /logs
+/_path_for_rocksdb_storage
