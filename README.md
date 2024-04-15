@@ -1,7 +1,10 @@
 # Futures-Spot-Arbitrage-Binance-V1
 
-This project aims to implement an arbitrage strategy between Binance Futures and Spot markets. By exploiting price
-differences between these two markets, the strategy seeks to generate profits.
+The project includes arbitrage strategies between Binance futures and spot markets and stablecoin hedging arbitrage
+strategies.
+
+该项目包括币安期货和现货市场之间的套利策略以及稳定币对冲套利
+策略。
 
 ## Features
 
@@ -57,8 +60,10 @@ Run the main script to start monitoring and executing arbitrage opportunities:
 
 ```shell
   // run arbitrage 
+  // 执行期现套利策略
   cargo run --bin arbitrage
   // run stable coin hedging
+  // 执行稳定币对冲策略
   cargo run --bin hedging
 ```
 
