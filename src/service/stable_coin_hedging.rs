@@ -10,11 +10,6 @@ use std::sync::Arc;
 use tokio::select;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
-// K线数据
-lazy_static! {
-    pub static ref KLINES_MAP: Arc<DashMap<String, Vec<KlineSummary>>> = Arc::new(DashMap::new());
-}
-
 pub async fn event_stable_coin_start(rxs: HashMap<i64, UnboundedReceiver<model::ArbStableCoin>>) {
     for (_, mut rx) in rxs {
         let api = MyApi::new();
