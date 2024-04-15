@@ -1,12 +1,10 @@
 use crate::binance::rest_model::{KlineSummaries, KlineSummary};
 use crate::binance::MyApi;
-use crate::db::DBV1;
 use crate::{db, model, sql};
 use anyhow::anyhow;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
-use log::{debug, error, info, warn};
-use reqwest::get;
+use log::error;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::select;
@@ -132,11 +130,13 @@ async fn boll(api: MyApi, stable: model::ArbStableCoin) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[allow(dead_code, unused)]
 async fn percentage(api: MyApi, stable: model::ArbStableCoin) -> anyhow::Result<()> {
     // println!("percentage: {:?}", stable);
     Ok(())
 }
 
+#[allow(dead_code, unused)]
 async fn fixed_threshold(api: MyApi, stable: model::ArbStableCoin) -> anyhow::Result<()> {
     // println!("fixed_threshold: {:?}", stable);
     Ok(())

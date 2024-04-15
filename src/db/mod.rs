@@ -1,7 +1,7 @@
 use crate::conf;
 use anyhow::anyhow;
 use once_cell::sync::OnceCell;
-use rocksdb::{DBWithThreadMode, MultiThreaded, SingleThreaded, DB};
+use rocksdb::{DBWithThreadMode, SingleThreaded, DB};
 use sqlx::mysql::MySqlPoolOptions;
 use sqlx::MySqlPool;
 use std::sync::Arc;
