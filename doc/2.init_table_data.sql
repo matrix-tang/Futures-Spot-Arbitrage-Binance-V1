@@ -151,3 +151,10 @@ values (3, 6, 'binance', 'positive', 12, 51, 'LINK', 'spot', 'LINKUSDT', 'spot_b
         0.89170000, 0.89170000, '160116301513', 1, 1710336860, 0, null),
        (10, 6, 'binance', 'positive', 12, 56, 'LINK', 'spot', 'LINKUSDT', 'spot_sell', 20.2790, 0.89000000, 0.89000000,
         '4940347244', 1, 1710337407, 1710337407, null);
+
+insert into arbitrage.arb_stable_coin (id, user_id, platform, coin, market, symbol, price_truncate, amt_truncate,
+                                       strategy, option_open, option_close, option_amt, fok_diff, doing_status, created,
+                                       updated, bak)
+values (1, 11, 'binance', 'FDUSD', 'spot', 'FDUSDUSDT', 4, 0, '11', 0.0500, 0.0000, 100.0000, 0.0001, 1, 0, 0, null),
+       (2, 11, 'binance', 'FDUSD', 'spot', 'FDUSDUSDT', 4, 0, '31', 0.9980, 1.0010, 100.0000, 0.0001, 1, 0, 0, null),
+       (3, 11, 'binance', 'FDUSD', 'spot', 'FDUSDUSDT', 4, 0, '21', -0.0050, 0.0050, 100.0000, 0.0001, 1, 0, 0, null);

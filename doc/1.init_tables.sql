@@ -140,3 +140,48 @@ create table arbitrage.arb_strategy_ex_info
 )
     comment '策略执行记录表' charset = utf8;
 
+create table arb_stable_coin
+(
+    id             bigint auto_increment comment 'id'
+        primary key,
+    user_id        bigint                   not null comment '用户ID',
+    platform       varchar(64) default ''   not null comment '平台 binance、huobi、okx',
+    coin           varchar(64)              not null comment '币种',
+    market         varchar(64) default ''   not null comment '市场',
+    symbol         varchar(64) default ''   not null comment '交易对',
+    price_truncate tinyint     default 2    not null comment '价格小数点保留位数',
+    amt_truncate   tinyint     default 2    not null comment '数量小数点保留位数',
+    strategy       varchar(64) default '11' not null comment '策略方式  11、boll 21、百分比 31、固定阈值',
+    option_open    decimal(20, 4)           not null comment '入场阀值',
+    option_close   decimal(20, 4)           not null comment '出场阀值',
+    option_amt     decimal(20, 4)           not null comment '操作数量 ',
+    fok_diff       decimal(20, 4)           null comment 'FOK单子冗余处理，最新成交价格+-FOK',
+    doing_status   tinyint     default 0    not null comment '策略状态 0、不执行 1、执行 2、已完成',
+    created        int         default 0    null comment '创建时间',
+    updated        int         default 0    null comment '更新时间',
+    bak            varchar(255)             null comment '备注'
+)
+    comment '稳定币对冲策略表' charset = utf8mb4;
+
+
+create table arb_stable_coin_info
+(
+    id             bigint auto_increment comment 'id'
+        primary key,
+    stable_coin_id bigint                 not null comment 'arb_stable_coin 表ID',
+    user_id        bigint                 not null comment '用户ID',
+    platform       varchar(64) default '' not null comment '平台 binance、okx、huobi',
+    coin           varchar(64)            not null comment '币种',
+    market         varchar(64)            null comment '交易市场 spot、futures、delivery, transfer',
+    symbol         varchar(64)            not null comment '交易对/币种...',
+    option_type    varchar(64)            not null comment 'buy、sell',
+    price          decimal(20, 4)         not null comment '价格',
+    amount         decimal(20, 8)         not null comment '数量，合约为张数',
+    order_id       varchar(64)            null comment '委托单ID',
+    is_ok          tinyint     default 0  not null comment '0 未完成 1 已完成 2 已失效',
+    created        int         default 0  null comment '创建时间',
+    updated        int         default 0  null comment '更新时间',
+    bak            varchar(255)           null comment '备注'
+)
+    comment '稳定币对冲策略执行表' charset = utf8;
+
