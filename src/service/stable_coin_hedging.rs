@@ -243,14 +243,14 @@ async fn boll(api: MyApi, stable: model::ArbStableCoin) -> anyhow::Result<()> {
         }
     }
 
-    println!("{:?}", info_list);
+    /*println!("{:?}", info_list);
     println!(
         "up: {:?} dn: {:?} count: {:?} price: {:?}",
         upp,
         low,
         klines.len(),
         last_price
-    );
+    );*/
 
     Ok(())
 }
