@@ -1,7 +1,7 @@
 use crate::conf;
 use anyhow::anyhow;
 use once_cell::sync::OnceCell;
-use rocksdb::{DBWithThreadMode, SingleThreaded, DB};
+use rocksdb::{DBWithThreadMode, MultiThreaded, DB};
 use sqlx::mysql::MySqlPoolOptions;
 use sqlx::MySqlPool;
 use std::sync::Arc;
@@ -11,7 +11,7 @@ use tokio::fs::remove_dir_all;
 pub struct Db {
     db_pool: MySqlPool,
     redis: redis::Client,
-    rocksdb: Arc<DBWithThreadMode<SingleThreaded>>,
+    rocksdb: Arc<DBWithThreadMode<MultiThreaded>>,
 }
 
 pub static DBV1: OnceCell<Db> = OnceCell::new();
@@ -48,7 +48,7 @@ impl Db {
         })
     }
 
-    pub fn rocksdb(&self) -> &Arc<DBWithThreadMode<SingleThreaded>> {
+    pub fn rocksdb(&self) -> &Arc<DBWithThreadMode<MultiThreaded>> {
         &self.rocksdb
     }
 
