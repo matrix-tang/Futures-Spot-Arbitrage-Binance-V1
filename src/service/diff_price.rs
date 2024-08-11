@@ -186,7 +186,7 @@ pub async fn get_diff_signal() {
                     let threshold = Decimal::from_str("1.2").unwrap();
                     let updated = (Utc::now() + Duration::from_secs(2 * 60 * 60)).naive_utc().to_string();
 
-                    if price_diff_rate > threshold {
+                    if price_diff_rate > threshold || price_diff_rate < (threshold * Decimal::from(-1)) {
                         // Check if the entry already exists in the diff_signal table
                         match sql::get_arb_diff_signal_by_symbol_from_and_to_compare(
                             &coin_price.symbol,
