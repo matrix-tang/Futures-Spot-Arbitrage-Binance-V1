@@ -183,7 +183,7 @@ pub async fn get_diff_signal() {
 
                     let price_diff = to_price.sub(*from_price);
                     let price_diff_rate = price_diff.div(*to_price).mul(Decimal::from(100));
-                    let threshold = Decimal::from_str("1.2").unwrap();
+                    let threshold = Decimal::from_str("1.4").unwrap();
                     let updated = (Utc::now() + Duration::from_secs(2 * 60 * 60)).naive_utc().to_string();
 
                     if price_diff_rate > threshold || price_diff_rate < (threshold * Decimal::from(-1)) {
