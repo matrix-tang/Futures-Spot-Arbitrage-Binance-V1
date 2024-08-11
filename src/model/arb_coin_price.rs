@@ -14,7 +14,6 @@ pub struct ArbCoinPrice {
     pub bybit_futures_price: Decimal,
     pub kucoin_futures_price: Decimal,
     pub created: String,
-    pub bak: Option<String>,
     pub bybit_updated: String,
     pub kucoin_updated: String,
     pub binance_updated: String,

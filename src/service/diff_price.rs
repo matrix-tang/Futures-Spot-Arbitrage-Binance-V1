@@ -1,5 +1,5 @@
 use crate::{model, sql};
-use chrono::{Duration, Utc};
+use chrono::{Duration, NaiveDateTime, Utc};
 use log::{debug, error};
 use rust_decimal::Decimal;
 use std::ops::{Div, Mul, Sub};
@@ -24,7 +24,7 @@ pub async fn set_price_data(mut price_rx: UnboundedReceiver<PriceStream>) {
                         let price = Decimal::from_str(&ticker.current_close.unwrap()).unwrap();
                         let platform = stream.platform.clone();
                         let market = stream.market.clone();
-                        let updated = (Utc::now() + Duration::try_hours(2).unwrap()).naive_utc().to_string();
+                        let updated = (Utc::now() + Duration::try_hours(2).unwrap()).naive_utc().format("%Y-%m-%d %H:%M:%S").to_string();
                         debug!("got data for symbol: {symbol}, price: {price}, platform: {platform}, market: {market}");
                         
                         let (price_field, date_field) = match platform {
@@ -64,7 +64,6 @@ pub async fn set_price_data(mut price_rx: UnboundedReceiver<PriceStream>) {
                                 bybit_futures_price: Decimal::ZERO,
                                 kucoin_futures_price: Decimal::ZERO,
                                 created: updated.clone(),
-                                bak: None,
                                 bybit_updated: "Not Available".to_string(),
                                 kucoin_updated: "Not Available".to_string(),
                                 binance_updated: "Not Available".to_string(),
@@ -161,16 +160,28 @@ pub async fn get_diff_signal() {
         // Fetch all rows from the arb_coin_price table
         let coin_prices = sql::get_all_arb_coin_prices().await.unwrap();
 
-        for coin_price in coin_prices {
-            let prices = vec![
-                ("binance_futures_price", coin_price.binance_futures_price),
-                ("bybit_futures_price", coin_price.bybit_futures_price),
-                ("kucoin_futures_price", coin_price.kucoin_futures_price),
+        for coin_price in coin_prices.clone() {
+            let prices_data = vec![
+                ("binance_futures_price", coin_price.binance_futures_price, coin_price.binance_updated),
+                ("bybit_futures_price", coin_price.bybit_futures_price, coin_price.bybit_updated),
+                ("kucoin_futures_price", coin_price.kucoin_futures_price, coin_price.kucoin_updated),
             ];
+            
 
-            for (i, (from_compare, from_price)) in prices.iter().enumerate() {
-                for (j, (to_compare, to_price)) in prices.iter().enumerate() {
+            for (i, (from_compare, from_price, from_updated)) in prices_data.iter().enumerate() {
+                for (j, (to_compare, to_price, to_updated)) in prices_data.iter().enumerate() {
                     if i >= j || *from_price == Decimal::ZERO || *to_price == Decimal::ZERO {
+                        continue;
+                    }
+                    // Check if the updated times are within the last 10 minutes
+                    let now = Utc::now().naive_utc();
+                    let ten_minutes_ago = now - Duration::try_minutes(10).unwrap();
+
+                    let from_updated_ts = NaiveDateTime::parse_from_str(&from_updated, "%Y-%m-%d %H:%M:%S").unwrap();
+                    let to_updated_ts = NaiveDateTime::parse_from_str(&to_updated, "%Y-%m-%d %H:%M:%S").unwrap();
+                    if from_updated_ts < ten_minutes_ago
+                        || to_updated_ts < ten_minutes_ago
+                    {
                         continue;
                     }
 
@@ -181,44 +192,43 @@ pub async fn get_diff_signal() {
 
                     if price_diff_rate > threshold {
                         // Check if the entry already exists in the diff_signal table
-                        if let Ok(existing_signal) = sql::get_arb_diff_signal_by_symbol_from_and_to_compare(
+                        match sql::get_arb_diff_signal_by_symbol_from_and_to_compare(
                             &coin_price.symbol,
                             &from_compare.to_string(),
                             &to_compare.to_string(),
                         ).await {
-                            // Update the existing record
-                            if let Err(e) = sql::update_arb_diff_signal_by_id(
-                                existing_signal.id,
-                                price_diff,
-                                price_diff_rate,
-                                coin_price.binance_futures_price,
-                                coin_price.bybit_futures_price,
-                                coin_price.kucoin_futures_price,
-                                updated.clone(),
-                            ).await {
-                                error!("{:?}", e);
-                            }
-                        } else {
-                            // Insert a new record
-                            if let Err(e) = sql::insert_arb_diff_signal(
-                                model::ArbDiffSignal {
-                                    id: 0,
-                                    symbol: coin_price.symbol.clone(),
-                                    from_compare: from_compare.to_string(),
-                                    to_compare: to_compare.to_string(),
+                            Ok(existing_signal) => {
+                                // Update the existing record
+                                if let Err(e) = sql::update_arb_diff_signal_by_id(
+                                    existing_signal.id,
                                     price_diff,
                                     price_diff_rate,
-                                    binance_futures_price: coin_price.binance_futures_price,
-                                    bybit_futures_price: coin_price.bybit_futures_price,
-                                    kucoin_futures_price: coin_price.kucoin_futures_price,
-                                    created: updated.clone(),
-                                    updated,
-                                    binance_updated: coin_price.binance_updated.clone(),
-                                    bybit_updated: coin_price.bybit_updated.clone(),
-                                    kucoin_updated: coin_price.kucoin_updated.clone(),
+                                    *from_price,
+                                    *to_price,
+                                    from_updated.clone(),
+                                    to_updated.clone()
+                                ).await {
+                                    error!("{:?}", e);
                                 }
-                            ).await {
-                                error!("{:?}", e);
+                            },
+                            Err(_) => {
+                                if let Err(e) = sql::insert_arb_diff_signal(
+                                    model::ArbDiffSignal {
+                                        id: 0,
+                                        symbol: coin_price.symbol.clone(),
+                                        from_compare: from_compare.to_string(),
+                                        to_compare: to_compare.to_string(),
+                                        price_diff,
+                                        price_diff_rate,
+                                        from_price: *from_price,
+                                        to_price: *to_price,
+                                        created: updated.clone(),
+                                        from_updated: from_updated.clone(),
+                                        to_updated: to_updated.clone()
+                                    }
+                                ).await {
+                                    error!("{:?}", e);
+                                }
                             }
                         }
                     }

@@ -58,20 +58,17 @@ pub async fn insert_arb_coin_price(coin_price: model::ArbCoinPrice) -> anyhow::R
 }
 
 pub async fn insert_arb_diff_signal(diff_signal: model::ArbDiffSignal) -> anyhow::Result<u64> {
-    let last_insert_id = sqlx::query("INSERT INTO arb_diff_signal (symbol, from_compare, to_compare, price_diff, price_diff_rate, binance_futures_price, bybit_futures_price, kucoin_futures_price, created, updated, binance_updated, bybit_updated, kucoin_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+    let last_insert_id = sqlx::query("INSERT INTO arb_diff_signal (symbol, from_compare, to_compare, price_diff, price_diff_rate, from_price, to_price, created, from_updated, to_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
         .bind(diff_signal.symbol)
         .bind(diff_signal.from_compare)
         .bind(diff_signal.to_compare)
         .bind(diff_signal.price_diff)
         .bind(diff_signal.price_diff_rate)
-        .bind(diff_signal.binance_futures_price)
-        .bind(diff_signal.bybit_futures_price)
-        .bind(diff_signal.kucoin_futures_price)
-        .bind(diff_signal.binance_updated)
-        .bind(diff_signal.bybit_updated)
-        .bind(diff_signal.kucoin_updated)
+        .bind(diff_signal.from_price)
+        .bind(diff_signal.to_price)
         .bind(diff_signal.created)
-        .bind(diff_signal.updated)
+        .bind(diff_signal.from_updated)
+        .bind(diff_signal.to_updated)
         .execute(db::get_db()?.database())
         .await?
         .last_insert_id();
@@ -98,18 +95,20 @@ pub async fn update_arb_diff_signal_by_id(
     id: i64,
     price_diff: Decimal,
     price_diff_rate: Decimal,
-    binance_futures_price: Decimal,
-    bybit_futures_price: Decimal,
-    kucoin_futures_price: Decimal,
-    updated: String,
+    from_price: Decimal,
+    to_price: Decimal,
+    from_updated: String,
+    to_updated: String
 ) -> anyhow::Result<u64> {
-    let rows = sqlx::query("UPDATE arb_diff_signal SET price_diff = ?, price_diff_rate = ?, binance_futures_price = ?, bybit_futures_price = ?, kucoin_futures_price = ?, updated = ? WHERE id = ?")
+    let rows = sqlx::query("UPDATE arb_diff_signal SET price_diff = ?, price_diff_rate = ?, 
+                                    from_price = ?, to_price = ?,
+                                    from_updated = ?, to_updated = ? WHERE id = ?")
         .bind(price_diff)
         .bind(price_diff_rate)
-        .bind(binance_futures_price)
-        .bind(bybit_futures_price)
-        .bind(kucoin_futures_price)
-        .bind(updated)
+        .bind(from_price)
+        .bind(to_price)
+        .bind(from_updated)
+        .bind(to_updated)
         .bind(id)
         .execute(db::get_db()?.database())
         .await?
