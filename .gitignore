@@ -5,3 +5,4 @@ config.toml
 /_path_for_rocksdb_storage
 /rocksdb
 /.vscode
+output.log
