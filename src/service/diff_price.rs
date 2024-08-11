@@ -1,9 +1,11 @@
 use crate::{model, sql};
-use chrono::{Duration, NaiveDateTime, Utc};
-use log::{debug, error};
+use chrono::{NaiveDateTime, Utc};
+use log::{debug, error, info};
 use rust_decimal::Decimal;
+use tokio::time::{sleep, timeout};
 use std::ops::{Div, Mul, Sub};
 use std::str::FromStr;
+use std::time::Duration;
 use tokio::select;
 use tokio::sync::mpsc::UnboundedReceiver;
 use crate::binance::ws_model::{Market, Platform};
@@ -24,7 +26,7 @@ pub async fn set_price_data(mut price_rx: UnboundedReceiver<PriceStream>) {
                         let price = Decimal::from_str(&ticker.current_close.unwrap()).unwrap();
                         let platform = stream.platform.clone();
                         let market = stream.market.clone();
-                        let updated = (Utc::now() + Duration::try_hours(2).unwrap()).naive_utc().format("%Y-%m-%d %H:%M:%S").to_string();
+                        let updated = (Utc::now() + Duration::from_secs(2 * 60 * 60)).naive_utc().format("%Y-%m-%d %H:%M:%S").to_string();
                         debug!("got data for symbol: {symbol}, price: {price}, platform: {platform}, market: {market}");
                         
                         let (price_field, date_field) = match platform {
@@ -154,19 +156,15 @@ pub async fn set_price_data(mut price_rx: UnboundedReceiver<PriceStream>) {
 //     }
 // }
 
-#[allow(unused_assignments)]
 pub async fn get_diff_signal() {
     loop {
-        // Fetch all rows from the arb_coin_price table
         let coin_prices = sql::get_all_arb_coin_prices().await.unwrap();
-
         for coin_price in coin_prices.clone() {
             let prices_data = vec![
                 ("binance_futures_price", coin_price.binance_futures_price, coin_price.binance_updated),
                 ("bybit_futures_price", coin_price.bybit_futures_price, coin_price.bybit_updated),
                 ("kucoin_futures_price", coin_price.kucoin_futures_price, coin_price.kucoin_updated),
             ];
-            
 
             for (i, (from_compare, from_price, from_updated)) in prices_data.iter().enumerate() {
                 for (j, (to_compare, to_price, to_updated)) in prices_data.iter().enumerate() {
@@ -175,20 +173,18 @@ pub async fn get_diff_signal() {
                     }
                     // Check if the updated times are within the last 10 minutes
                     let now = Utc::now().naive_utc();
-                    let ten_minutes_ago = now - Duration::try_minutes(10).unwrap();
+                    let ten_minutes_ago = now - Duration::from_secs(10 * 60);
 
                     let from_updated_ts = NaiveDateTime::parse_from_str(&from_updated, "%Y-%m-%d %H:%M:%S").unwrap();
                     let to_updated_ts = NaiveDateTime::parse_from_str(&to_updated, "%Y-%m-%d %H:%M:%S").unwrap();
-                    if from_updated_ts < ten_minutes_ago
-                        || to_updated_ts < ten_minutes_ago
-                    {
+                    if from_updated_ts < ten_minutes_ago || to_updated_ts < ten_minutes_ago {
                         continue;
                     }
 
                     let price_diff = to_price.sub(*from_price);
                     let price_diff_rate = price_diff.div(*to_price).mul(Decimal::from(100));
                     let threshold = Decimal::from_str("1.2").unwrap();
-                    let updated = (Utc::now() + Duration::try_hours(2).unwrap()).naive_utc().to_string();
+                    let updated = (Utc::now() + Duration::from_secs(2 * 60 * 60)).naive_utc().to_string();
 
                     if price_diff_rate > threshold {
                         // Check if the entry already exists in the diff_signal table
@@ -208,10 +204,16 @@ pub async fn get_diff_signal() {
                                     from_updated.clone(),
                                     to_updated.clone()
                                 ).await {
-                                    error!("{:?}", e);
+                                    error!("Failed to update arb_diff_signal: {:?}", e);
+                                } else {
+                                    info!("Successfully updated arb_diff_signal with id: {}", existing_signal.id);
                                 }
                             },
-                            Err(_) => {
+                            Err(e) => {
+                                // Log the error to understand why the record was not found
+                                error!("Failed to find existing arb_diff_signal: {:?}", e);
+                        
+                                // Insert a new record
                                 if let Err(e) = sql::insert_arb_diff_signal(
                                     model::ArbDiffSignal {
                                         id: 0,
@@ -227,7 +229,9 @@ pub async fn get_diff_signal() {
                                         to_updated: to_updated.clone()
                                     }
                                 ).await {
-                                    error!("{:?}", e);
+                                    error!("Failed to insert new arb_diff_signal: {:?}", e);
+                                } else {
+                                    info!("Successfully inserted new arb_diff_signal for symbol: {}", coin_price.symbol);
                                 }
                             }
                         }
@@ -235,5 +239,6 @@ pub async fn get_diff_signal() {
                 }
             }
         }
+        sleep(Duration::from_secs(3)).await;
     }
 }
