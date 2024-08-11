@@ -68,8 +68,8 @@ pub async fn handle_websocket(
                     }
                 }
                 Platform::Kucoin => {
-                    if let WebSocketEvent::KucoinTicker(ckucoin_event) = event {
-                        tickers.push(ckucoin_event.into());
+                    if let WebSocketEvent::KucoinTicker(kucoin_event) = event {
+                        tickers.push(kucoin_event.into());
                     }
                 }
             }

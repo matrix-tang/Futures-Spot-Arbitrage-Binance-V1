@@ -4,6 +4,7 @@ use futures::{SinkExt, StreamExt};
 use log::error;
 use serde_json::from_str;
 use tokio::net::TcpStream;
+use tokio::time::{self, Duration};
 use tokio_tungstenite::tungstenite::handshake::client::Response;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::WebSocketStream;
@@ -163,32 +164,50 @@ impl<'a, WE: serde::de::DeserializeOwned> WebSockets<'a, WE> {
     pub fn socket(&self) -> &Option<(WebSocketStream<MaybeTlsStream<TcpStream>>, Response)> { &self.socket }
 
     pub async fn event_loop(&mut self, running: &AtomicBool) -> Result<()> {
+        let timeout_duration = Duration::from_secs(600); // 10 minutes
+        let mut last_message_time = time::Instant::now();
         while running.load(Ordering::Relaxed) {
             if let Some((ref mut socket, _)) = self.socket {
-                // TODO: return error instead of panic?
-                let message = socket.next().await.unwrap()?;
-
-                match message {
-                    Message::Text(msg) => {
-                        if msg.is_empty() {
-                            return Ok(());
-                        }
-                        match from_str::<WE>(msg.as_str()) {
-                            Ok(event) => {
-                                if let Err(e) = (self.handler)(event) {
-                                    error!("Handler error: {:?}", e);
+                let timeout = time::timeout(timeout_duration, socket.next()).await;
+                match timeout {
+                    Ok(Some(Ok(message))) => {
+                        last_message_time = time::Instant::now();
+                        last_message_time = time::Instant::now();
+                        match message {
+                            Message::Text(msg) => {
+                                if msg.is_empty() {
+                                    return Ok(());
+                                }
+                                match from_str::<WE>(msg.as_str()) {
+                                    Ok(event) => {
+                                        if let Err(e) = (self.handler)(event) {
+                                            error!("Handler error: {:?}", e);
+                                        }
+                                    }
+                                    Err(e) => {
+                                        error!("Failed to parse message: {:?}", e);
+                                    }
                                 }
                             }
-                            Err(e) => {
-                                error!("Failed to parse message: {:?}", e);
+                            Message::Ping(_) | Message::Pong(_) | Message::Binary(_) | Message::Frame(_) => {}
+                            Message::Close(e) => {
+                                return Err(Error::Msg(format!("Disconnected {e:?}")));
                             }
                         }
                     }
-                    Message::Ping(_) | Message::Pong(_) | Message::Binary(_) | Message::Frame(_) => {}
-                    Message::Close(e) => {
-                        return Err(Error::Msg(format!("Disconnected {e:?}")));
+                    Ok(Some(Err(e))) => {
+                        error!("WebSocket error: {e}");
+                        return Err(Error::Msg(format!("Disconnected")));
+                    }
+                    Ok(None) => {
+                        error!("WebSocket closed");
+                        return Err(Error::Msg(format!("Disconnected")));
+                    }
+                    Err(_) => {
+                        return Err(Error::Msg(format!("Disconnected, No data received in last 10 mins")));
                     }
                 }
+    
             }
         }
         Ok(())
