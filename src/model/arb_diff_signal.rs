@@ -15,5 +15,8 @@ pub struct ArbDiffSignal {
     pub kucoin_futures_price: Decimal,
     pub created: String,
     pub updated: String,
+    pub binance_updated: String,
+    pub bybit_updated: String,
+    pub kucoin_updated: String
 }
 

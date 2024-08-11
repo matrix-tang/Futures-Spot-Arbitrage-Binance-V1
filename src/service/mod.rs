@@ -16,15 +16,19 @@ pub use price::set_binance_price;
 pub use stable_coin_hedging::event_stable_coin_start;
 pub use stable_coin_hedging::inspect_stable_coin;
 
+use crate::binance::errors::Error;
 use crate::binance::websockets::*;
 use crate::binance::ws_model::*;
+use crate::conf::ws_message::BYBIT_MESSAGE;
+use crate::conf::ws_message::KUCOIN_MESSAGE;
+use crate::conf::C;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
+use reqwest::Client;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_tungstenite::tungstenite::Message;
 use url::Url;
-use crate::constants::{BYBIT_MESSAGE, KUCOIN_MESSAGE};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PriceStream {
@@ -34,11 +38,16 @@ pub struct PriceStream {
     pub local_time: i64,
 }
 
+async fn get_token() -> Result<String, reqwest::Error> {
+    let url = "https://api-futures.kucoin.com/api/v1/bullet-public";
+    let client = Client::new();
+    let response = client.post(url).send().await?;
+    let data: TokenResponse = response.json().await?;
+    Ok(data.data.token)
+}
 
 
 pub async fn handle_websocket(
-    url: &str,
-    message: Option<&str>,
     platform: Platform,
     market: Market,
     price_tx: UnboundedSender<PriceStream>,
@@ -64,7 +73,6 @@ pub async fn handle_websocket(
                     }
                 }
             }
-
             let price_stream = PriceStream {
                 tickers,
                 platform: platform.clone(),
@@ -78,13 +86,51 @@ pub async fn handle_websocket(
 
             Ok(())
         });
-
-        web_socket.connect(Url::parse(url).unwrap()).await.unwrap();
-        if let Some(msg) = message {
-            web_socket.send_message(Message::Text(msg.to_string())).await.unwrap();
+        match platform {
+            Platform::Binance => {
+                let url = match market {
+                    Market::Spot => {
+                        Url::parse(&C.binance_api_config.ws_spot_url).unwrap()
+                    }
+                    Market::Futures => {
+                        Url::parse(&C.binance_api_config.ws_futures_url).unwrap()
+                    }   
+                };
+                web_socket.connect(url).await.unwrap();
+            }
+            Platform::Bybit => {
+                let (url, message) = match market {
+                    Market::Spot => {
+                        (Url::parse(&C.bybit_api_config.ws_futures_url).unwrap(), Message::Text(BYBIT_MESSAGE.to_string()))
+                    }
+                    Market::Futures => {
+                        (Url::parse(&C.bybit_api_config.ws_futures_url).unwrap(), Message::Text(BYBIT_MESSAGE.to_string()))
+                    } 
+                };
+                web_socket.connect(url).await.unwrap();
+                web_socket.send_message(message).await.unwrap();
+            }
+            Platform::Kucoin => {
+                let (url, message) = match market {
+                    Market::Spot => {
+                        let token = get_token().await.unwrap();
+                        let url =  &C.kucoin_api_config.ws_futures_url.replace("{token}", &token);
+                        (Url::parse(url).unwrap(), Message::Text(BYBIT_MESSAGE.to_string()))
+                    }
+                    Market::Futures => {
+                        let token = get_token().await.unwrap();
+                        let url =  &C.kucoin_api_config.ws_futures_url.replace("{token}", &token);
+                        (Url::parse(url).unwrap(), Message::Text(KUCOIN_MESSAGE.to_string()))
+                    } 
+                };
+                web_socket.connect(url).await.unwrap();
+                web_socket.send_message(message).await.unwrap();
+            }
+            
         }
+        info!("websocket connected for platform: {platform}, market: {market}");
         if let Err(e) = web_socket.event_loop(&keep_running).await {
-            error!("Error: {e}");
+            error!("platform: {platform}, market: {market}, Error: {e}");
             continue
         }
         web_socket.disconnect().await.unwrap();
@@ -93,115 +139,29 @@ pub async fn handle_websocket(
 
 }
 
-pub async fn binance_spot_all_ticker(price_tx: UnboundedSender<PriceStream>) {
-    let keep_running = AtomicBool::new(true);
-    let url = "wss://stream.binance.com:9443/ws/!miniTicker@arr";
-
-    handle_websocket(url, None, Platform::Binance, Market::Spot, price_tx, &keep_running).await;
-}
-
-pub async fn binance_futures_all_ticker(price_tx: UnboundedSender<PriceStream>) {
-    let keep_running = AtomicBool::new(true);
-    let url = "wss://fstream.binance.com/ws/!miniTicker@arr";
-
-    handle_websocket(url, None, Platform::Binance, Market::Futures, price_tx, &keep_running).await;
-}
-
-pub async fn bybit_spot_all_ticker(price_tx: UnboundedSender<PriceStream>) {
-    let keep_running = AtomicBool::new(true);
-    let message = BYBIT_MESSAGE;
-    let url = "wss://stream.bybit.com/contract/usdt/public/v3";
-
-    handle_websocket(url, Some(message), Platform::Bybit, Market::Spot, price_tx, &keep_running).await;
-}
-
-pub async fn bybit_futures_all_ticker(price_tx: UnboundedSender<PriceStream>) {
-    let keep_running = AtomicBool::new(true);
-    let message = BYBIT_MESSAGE;
-    let url = "wss://stream.bybit.com/contract/usdt/public/v3";
-
-    handle_websocket(url, Some(message), Platform::Bybit, Market::Futures, price_tx, &keep_running).await;
-}
-
-pub async fn kucoin_spot_all_ticker(price_tx: UnboundedSender<PriceStream>) {
-    let keep_running = AtomicBool::new(true);
-    let message = KUCOIN_MESSAGE;
-    let url = "wss://push1-v2.kucoin.com/endpoint";
-
-    handle_websocket(url, Some(message), Platform::Kucoin, Market::Spot, price_tx, &keep_running).await;
-}
-
-pub async fn kucoin_futures_all_ticker(price_tx: UnboundedSender<PriceStream>) {
-    let keep_running = AtomicBool::new(true);
-    let message = KUCOIN_MESSAGE;
-    let url = "wss://ws-api.kucoin.com/endpoint?token=2neAiuYvAU61ZDXANAGAsiL4-iAExhsBXZxftpOeh_55i3Ysy2q2LEsEWU64mdzUOPusi34M_wGoSf7iNyEWJ_K5H63P8kFWJc4EK10_nKiOZxmSM3PY-9iYB9J6i9GjsxUuhPw3BlrzazF6ghq4LzJLZP8BvaT_BRUoz0xJxR0=.G2UFzARHJwRctOldHX6dyw==";
-
-    handle_websocket(url, Some(message), Platform::Kucoin, Market::Futures, price_tx, &keep_running).await;
-}
-
 #[allow(dead_code)]
 #[allow(irrefutable_let_patterns)]
 pub async fn binance_all_ticker(price_tx: UnboundedSender<PriceStream>) {
+    let keep_running = AtomicBool::new(true);
     tokio::join!(
-        // binance_spot_all_ticker(price_tx.clone()),
-        binance_futures_all_ticker(price_tx.clone()),
+        handle_websocket(Platform::Binance, Market::Futures, price_tx, &keep_running)
     );
 }
 
 #[allow(dead_code)]
 #[allow(irrefutable_let_patterns)]
 pub async fn bybit_all_ticker(price_tx: UnboundedSender<PriceStream>) {
+    let keep_running = AtomicBool::new(true);
     tokio::join!(
-        // bybit_spot_all_ticker(price_tx.clone()),
-        bybit_futures_all_ticker(price_tx.clone()),
+        handle_websocket(Platform::Bybit, Market::Futures, price_tx, &keep_running)
     );
 }
 
 #[allow(dead_code)]
 #[allow(irrefutable_let_patterns)]
 pub async fn kucoin_all_ticker(price_tx: UnboundedSender<PriceStream>) {
+    let keep_running = AtomicBool::new(true);
     tokio::join!(
-        // kucoin_spot_all_ticker(price_tx.clone()),
-        kucoin_futures_all_ticker(price_tx.clone())
+        handle_websocket(Platform::Kucoin, Market::Futures, price_tx, &keep_running)
     );
 }
-//
-// #[allow(dead_code)]
-// #[allow(irrefutable_let_patterns)]
-// pub async fn delivery_all_ticker(price_tx: UnboundedSender<PriceStream>) {
-//     let keep_running = AtomicBool::new(true);
-//     let all_ticker = all_mini_ticker_stream();
-//
-//     let mut web_socket: WebSockets<'_, Vec<WebsocketEvent>> =
-//         WebSockets::new(|events: Vec<WebsocketEvent>| {
-//             let mut tickers = Vec::new();
-//             for tick_events in events {
-//                 if let WebsocketEvent::DayMiniTicker(tick_event) = tick_events {
-//                     tickers.push(*tick_event)
-//                 }
-//             }
-//
-//             let price_stream = PriceStream {
-//                 tickers: tickers,
-//                 market: "delivery".to_string(),
-//                 local_time: chrono::Local::now().timestamp_millis(),
-//             };
-//             match price_tx.send(price_stream) {
-//                 Ok(_) => {}
-//                 Err(_e) => {
-//                     keep_running.store(false, Ordering::Relaxed);
-//                 }
-//             }
-//
-//             // Break the event loop
-//             // keep_running.store(false, Ordering::Relaxed);
-//             Ok(())
-//         });
-//
-//     web_socket.connect_delivery(all_ticker).await.unwrap(); // check error
-//     if let Err(e) = web_socket.event_loop(&keep_running).await {
-//         error!("Error: {e}");
-//     }
-//     web_socket.disconnect().await.unwrap();
-//     info!("delivery websocket disconnected");
-// }

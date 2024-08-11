@@ -14,4 +14,3 @@ pub mod helper;
 pub mod model;
 pub mod service;
 pub mod sql;
-mod constants;

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
@@ -94,6 +95,27 @@ impl From<Box<KucoinTickerMessage>> for BinanceTickerEvent {
     }
 }
 
+impl fmt::Display for Platform {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let platform_str = match self {
+            Platform::Binance => "Binance",
+            Platform::Bybit => "Bybit",
+            Platform::Kucoin => "Kucoin",
+        };
+        write!(f, "{}", platform_str)
+    }
+}
+
+impl fmt::Display for Market {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let market_str = match self {
+            Market::Spot => "Spot",
+            Market::Futures => "Futures",
+        };
+        write!(f, "{}", market_str)
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 struct SubscribeResponse {
     success: bool,
@@ -172,4 +194,13 @@ fn convert_ticker_string(ticker: &String) -> String {
 pub struct WelcomeMessage {
     id: String,
     r#type: String,  // `type` is a reserved keyword, so use `r#type`
+}
+#[derive(Deserialize)]
+pub struct TokenResponse {
+    pub data: TokenData,
+}
+
+#[derive(Deserialize)]
+pub struct TokenData {
+    pub token: String,
 }

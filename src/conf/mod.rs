@@ -1,4 +1,5 @@
 pub mod redis_key;
+pub mod ws_message;
 
 use std::fs::File;
 use std::io::prelude::*;
@@ -31,6 +32,22 @@ pub struct MysqlConfig {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BinanceApiConfig {
+    pub ws_futures_url: String,
+    pub ws_spot_url: String,
+    pub api_key: String,
+    pub secret_key: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct BybitApiConfig {
+    pub ws_futures_url: String,
+    pub api_key: String,
+    pub secret_key: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct KucoinApiConfig {
+    pub ws_futures_url: String,
     pub api_key: String,
     pub secret_key: String,
 }
@@ -42,6 +59,8 @@ pub struct Config {
     pub rocksdb: RocksDbConfig,
     pub log: LogConfig,
     pub binance_api_config: BinanceApiConfig,
+    pub bybit_api_config: BybitApiConfig,
+    pub kucoin_api_config: KucoinApiConfig
 }
 
 lazy_static! {

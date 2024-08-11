@@ -1,10 +1,11 @@
 use crate::{model, service, sql};
 use chrono::{Duration, Local, TimeDelta, Utc};
-use log::{debug, error};
+use log::{debug, error, info};
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 use std::ops::{Div, Mul, Sub};
 use std::str::FromStr;
+use redis::ToRedisArgs;
 use tokio::select;
 use tokio::sync::mpsc::UnboundedReceiver;
 use crate::binance::ws_model::{Market, Platform};
@@ -27,21 +28,22 @@ pub async fn set_price_data(mut price_rx: UnboundedReceiver<PriceStream>) {
                         let platform = stream.platform.clone();
                         let market = stream.market.clone();
                         let updated = (Utc::now() + Duration::hours(2)).naive_utc().to_string();
-                        let price_field = match platform {
-                        Platform::Binance => match market {
-                            Market::Spot => "binance_spot_price",
-                            Market::Futures => "binance_futures_price", // Skip if market is not recognized
-                        },
-                        Platform::Bybit => match market {
-                            Market::Spot => "bybit_spot_price",
-                            Market::Futures => "bybit_futures_price", // Skip if market is not recognized
-                        },
-                        Platform::Kucoin => match market {
-                            Market::Spot => "kucoin_spot_price",
-                            Market::Futures => "kucoin_futures_price", // Skip if market is not recognized
-                        },
-                        _ => continue, // Skip if platform is not recognized
-                    };
+                        debug!("got data for symbol: {symbol}, price: {price}, platform: {platform}, market: {market}");
+                        
+                        let (price_field, date_field) = match platform {
+                            Platform::Binance => match market {
+                                Market::Spot => ("binance_spot_price", "binance_updated"),
+                                Market::Futures => ("binance_futures_price", "binance_updated"),
+                            },
+                            Platform::Bybit => match market {
+                                Market::Spot => ("bybit_spot_price", "bybit_updated"),
+                                Market::Futures => ("bybit_futures_price", "bybit_updated"),
+                            },
+                            Platform::Kucoin => match market {
+                                Market::Spot => ("kucoin_spot_price", "kucoin_updated"),
+                                Market::Futures => ("kucoin_futures_price", "kucoin_updated"),
+                            }
+                        };
                         // Check if the record exists
                         if let Ok(existing_record) = sql::get_arb_coin_price_by_symbol(&symbol).await {
                             // Update the existing record
@@ -49,6 +51,7 @@ pub async fn set_price_data(mut price_rx: UnboundedReceiver<PriceStream>) {
                                 existing_record.id,
                                 price_field,
                                 price,
+                                date_field,
                                 updated.clone(),
                             ).await {
                                 error!("{:?}", e);
@@ -64,14 +67,24 @@ pub async fn set_price_data(mut price_rx: UnboundedReceiver<PriceStream>) {
                                 bybit_futures_price: Decimal::ZERO,
                                 kucoin_futures_price: Decimal::ZERO,
                                 created: updated.clone(),
-                                updated,
                                 bak: None,
+                                bybit_updated: "Not Available".to_string(),
+                                kucoin_updated: "Not Available".to_string(),
+                                binance_updated: "Not Available".to_string(),
                             };
                             match platform {
-                                Platform::Binance => new_record.binance_spot_price = price,
-                                Platform::Bybit => new_record.bybit_futures_price = price,
-                                Platform::Kucoin => new_record.kucoin_futures_price = price,
-                                _ => continue, // Skip if platform is not recognized
+                                Platform::Binance => {
+                                    new_record.binance_futures_price = price;
+                                    new_record.binance_updated = updated;
+                                }
+                                Platform::Bybit => {
+                                    new_record.bybit_futures_price = price;
+                                    new_record.bybit_updated = updated;
+                                }
+                                Platform::Kucoin => {
+                                    new_record.kucoin_futures_price = price;
+                                    new_record.kucoin_updated = updated;
+                                }
                             }
                             if let Err(e) = sql::insert_arb_coin_price(new_record).await {
                                 error!("{:?}", e);
@@ -166,7 +179,7 @@ pub async fn get_diff_signal() {
 
                     let price_diff = to_price.sub(*from_price);
                     let price_diff_rate = price_diff.div(*to_price).mul(Decimal::from(100));
-                    let threshold = Decimal::from_str("0.9").unwrap();
+                    let threshold = Decimal::from_str("1.2").unwrap();
                     let updated = (Utc::now() + Duration::hours(2)).naive_utc().to_string();
 
                     if price_diff_rate > threshold {
@@ -203,6 +216,9 @@ pub async fn get_diff_signal() {
                                     kucoin_futures_price: coin_price.kucoin_futures_price,
                                     created: updated.clone(),
                                     updated,
+                                    binance_updated: coin_price.binance_updated.clone(),
+                                    bybit_updated: coin_price.bybit_updated.clone(),
+                                    kucoin_updated: coin_price.kucoin_updated.clone(),
                                 }
                             ).await {
                                 error!("{:?}", e);
