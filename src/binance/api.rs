@@ -187,14 +187,14 @@ impl MyApi {
     //     let request = build_signed_request_p(order, recv_window)?;
     //     self.client.post_signed("/api/v3/order", &request).await
     // }
-    //
+    
     // pub async fn order_status(&self, osr: OrderStatusRequest) -> Result<Order> {
     //     let recv_window = osr.recv_window.unwrap_or(self.recv_window);
     //     let request = build_signed_request_p(osr, recv_window)?;
     //     self.client.get_signed("/api/v3/order", &request).await
     // }
 
-    pub async fn place_order(&self, order: OrderRequest) -> Result<Transaction> {
+    pub async fn place_order(&self, _: OrderRequest) -> Result<Transaction> {
 
         // Simulate creating a transaction
         let transaction = Transaction {
@@ -217,7 +217,7 @@ impl MyApi {
         Ok(transaction)
     }
 
-    pub async fn order_status(&self, osr: OrderStatusRequest) -> Result<Order> {
+    pub async fn order_status(&self, _: OrderStatusRequest) -> Result<Order> {
         let order = Order {
             symbol: "BTCUSDT".to_string(),
             order_id: 123456,

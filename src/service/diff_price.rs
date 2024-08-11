@@ -1,11 +1,9 @@
-use crate::{model, service, sql};
-use chrono::{Duration, Local, TimeDelta, Utc};
-use log::{debug, error, info};
+use crate::{model, sql};
+use chrono::{Duration, Utc};
+use log::{debug, error};
 use rust_decimal::Decimal;
-use std::collections::HashMap;
 use std::ops::{Div, Mul, Sub};
 use std::str::FromStr;
-use redis::ToRedisArgs;
 use tokio::select;
 use tokio::sync::mpsc::UnboundedReceiver;
 use crate::binance::ws_model::{Market, Platform};
@@ -14,7 +12,6 @@ use crate::service::PriceStream;
 // src/service/diff_price.rs
 
 pub async fn set_price_data(mut price_rx: UnboundedReceiver<PriceStream>) {
-    let up = (Utc::now() + Duration::hours(2)).naive_utc().to_string();
     loop {
         select! {
             event = price_rx.recv() => {

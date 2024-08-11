@@ -1,5 +1,4 @@
 use crate::{db, model};
-use chrono::Local;
 use rust_decimal::Decimal;
 
 pub async fn get_all_arb_coin_prices() -> anyhow::Result<Vec<model::ArbCoinPrice>> {

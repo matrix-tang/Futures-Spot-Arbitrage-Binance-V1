@@ -21,17 +21,18 @@ pub struct BybitTickerEvent {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TickerData {
     symbol: String,
-    tickDirection: Option<String>,
-    price24hPcnt: Option<String>,
-    lastPrice: Option<String>,
-    turnover24h: Option<String>,
-    volume24h: Option<String>,
-    bid1Price: Option<String>,
-    bid1Size: Option<String>,
-    ask1Price: Option<String>,
-    ask1Size: Option<String>,
+    tick_direction: Option<String>,
+    price_24h_pcnt: Option<String>,
+    last_price: Option<String>,
+    turnover_24h: Option<String>,
+    volume_24h: Option<String>,
+    bid1_price: Option<String>,
+    bid1_size: Option<String>,
+    ask1_price: Option<String>,
+    ask1_size: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -63,7 +64,7 @@ impl From<Box<BybitTickerEvent>> for BinanceTickerEvent {
             event_type: "".to_string(),
             event_time: chrono::Local::now().timestamp_millis() as u64,
             symbol: bybit_event.data.symbol,
-            current_close: bybit_event.data.lastPrice,
+            current_close: bybit_event.data.last_price,
             open: None,
             high: None,
             low: None,
@@ -85,7 +86,7 @@ impl From<Box<KucoinTickerMessage>> for BinanceTickerEvent {
                 }
                 symbol
             },
-            current_close: kucoin_event.data.markPrice.map(|value| value.to_string()),
+            current_close: kucoin_event.data.mark_price.map(|value| value.to_string()),
             open: None,
             high: None,
             low: None,
@@ -117,7 +118,7 @@ impl fmt::Display for Market {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct SubscribeResponse {
+pub struct SubscribeResponse {
     success: bool,
     ret_msg: String,
     conn_id: String,
@@ -158,12 +159,13 @@ impl Market {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KucoinTickerData {
     symbol: String,
-    markPrice: Option<f64>,
-    indexPrice: Option<f64>,
+    mark_price: Option<f64>,
+    index_price: Option<f64>,
     granularity: Option<u64>,
-    fundingRate: Option<f64>,
+    funding_rate: Option<f64>,
     timestamp: u64,
 }
 
@@ -175,21 +177,6 @@ pub struct KucoinTickerMessage {
     subject: String,
 }
 
-fn convert_ticker_string(ticker: &String) -> String {
-    // Split by colon and take the second part
-    let parts: Vec<&str> = ticker.split(':').collect();
-    if parts.len() < 2 {
-        return String::new();
-    }
-    let symbol = parts[1];
-
-    // Split by hyphen and concatenate
-    let currencies: Vec<&str> = symbol.split('-').collect();
-    if currencies.len() < 2 {
-        return String::new();
-    }
-    format!("{}{}", currencies[0], currencies[1])
-}
 #[derive(Debug, Deserialize, Serialize)]
 pub struct WelcomeMessage {
     id: String,

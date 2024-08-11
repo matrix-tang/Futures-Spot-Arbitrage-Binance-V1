@@ -16,7 +16,6 @@ pub use price::set_binance_price;
 pub use stable_coin_hedging::event_stable_coin_start;
 pub use stable_coin_hedging::inspect_stable_coin;
 
-use crate::binance::errors::Error;
 use crate::binance::websockets::*;
 use crate::binance::ws_model::*;
 use crate::conf::ws_message::BYBIT_MESSAGE;

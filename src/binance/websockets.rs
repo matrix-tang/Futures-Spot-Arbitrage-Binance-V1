@@ -165,13 +165,12 @@ impl<'a, WE: serde::de::DeserializeOwned> WebSockets<'a, WE> {
 
     pub async fn event_loop(&mut self, running: &AtomicBool) -> Result<()> {
         let timeout_duration = Duration::from_secs(600); // 10 minutes
-        let mut last_message_time = time::Instant::now();
+        let mut last_message_time;
         while running.load(Ordering::Relaxed) {
             if let Some((ref mut socket, _)) = self.socket {
                 let timeout = time::timeout(timeout_duration, socket.next()).await;
                 match timeout {
                     Ok(Some(Ok(message))) => {
-                        last_message_time = time::Instant::now();
                         last_message_time = time::Instant::now();
                         match message {
                             Message::Text(msg) => {
@@ -207,7 +206,10 @@ impl<'a, WE: serde::de::DeserializeOwned> WebSockets<'a, WE> {
                         return Err(Error::Msg(format!("Disconnected, No data received in last 10 mins")));
                     }
                 }
-    
+                if last_message_time.elapsed() >= timeout_duration {
+                    error!("No data received in 10 minutes, restarting WebSocket");
+                    break;
+                }
             }
         }
         Ok(())
