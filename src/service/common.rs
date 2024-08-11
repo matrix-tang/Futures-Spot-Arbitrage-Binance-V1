@@ -149,17 +149,3 @@ pub fn new_reverse_coinm_desc(s: model::ArbStrategy) -> anyhow::Result<HashMap<i
 
     Ok(ex_desc_map)
 }
-
-use reqwest::Client;
-use serde::Deserialize;
-use std::error::Error;
-
-#[derive(Deserialize)]
-struct TokenResponse {
-    data: TokenData,
-}
-
-#[derive(Deserialize)]
-struct TokenData {
-    token: String,
-}

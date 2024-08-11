@@ -7,8 +7,6 @@ use arbitrage::{db, helper, service};
 use futures::future::BoxFuture;
 use log::warn;
 use std::collections::HashMap;
-use arbitrage::binance::ws_model::WebSocketEvent;
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // 初始化配置文件
