@@ -163,11 +163,3 @@ struct TokenResponse {
 struct TokenData {
     token: String,
 }
-
-pub async fn get__kucoin_token() -> Result<String, Box<dyn Error>> {
-    let url = "https://api-futures.kucoin.com/api/v1/bullet-public";
-    let client = Client::new();
-    let response = client.post(url).send().await?;
-    let token_response: TokenResponse = response.json().await?;
-    Ok(token_response.data.token)
-}

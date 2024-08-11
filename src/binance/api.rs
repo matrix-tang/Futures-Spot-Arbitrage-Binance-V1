@@ -194,7 +194,7 @@ impl MyApi {
     //     self.client.get_signed("/api/v3/order", &request).await
     // }
 
-    pub async fn place_order(&self, _: OrderRequest) -> Result<Transaction> {
+    pub async fn place_order(&self, _order: OrderRequest) -> Result<Transaction> {
 
         // Simulate creating a transaction
         let transaction = Transaction {
@@ -217,7 +217,7 @@ impl MyApi {
         Ok(transaction)
     }
 
-    pub async fn order_status(&self, _: OrderStatusRequest) -> Result<Order> {
+    pub async fn order_status(&self, _osr: OrderStatusRequest) -> Result<Order> {
         let order = Order {
             symbol: "BTCUSDT".to_string(),
             order_id: 123456,
