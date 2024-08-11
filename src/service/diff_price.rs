@@ -24,7 +24,7 @@ pub async fn set_price_data(mut price_rx: UnboundedReceiver<PriceStream>) {
                         let price = Decimal::from_str(&ticker.current_close.unwrap()).unwrap();
                         let platform = stream.platform.clone();
                         let market = stream.market.clone();
-                        let updated = (Utc::now() + Duration::hours(2)).naive_utc().to_string();
+                        let updated = (Utc::now() + Duration::try_hours(2).unwrap()).naive_utc().to_string();
                         debug!("got data for symbol: {symbol}, price: {price}, platform: {platform}, market: {market}");
                         
                         let (price_field, date_field) = match platform {
@@ -177,7 +177,7 @@ pub async fn get_diff_signal() {
                     let price_diff = to_price.sub(*from_price);
                     let price_diff_rate = price_diff.div(*to_price).mul(Decimal::from(100));
                     let threshold = Decimal::from_str("1.2").unwrap();
-                    let updated = (Utc::now() + Duration::hours(2)).naive_utc().to_string();
+                    let updated = (Utc::now() + Duration::try_hours(2).unwrap()).naive_utc().to_string();
 
                     if price_diff_rate > threshold {
                         // Check if the entry already exists in the diff_signal table

@@ -6,6 +6,8 @@ use crate::binance::util::{build_request, to_f64, to_i64};
 use crate::conf::C;
 use serde_json::Value;
 
+use super::util::build_signed_request_p;
+
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct FuturesOrderRequest {
@@ -181,65 +183,65 @@ impl MyApi {
             .await
     }
 
-    // pub async fn place_order(&self, order: OrderRequest) -> Result<Transaction> {
-    //     order.valid()?;
-    //     let recv_window = order.recv_window.unwrap_or(self.recv_window);
-    //     let request = build_signed_request_p(order, recv_window)?;
-    //     self.client.post_signed("/api/v3/order", &request).await
-    // }
+    pub async fn place_order(&self, order: OrderRequest) -> Result<Transaction> {
+        order.valid()?;
+        let recv_window = order.recv_window.unwrap_or(self.recv_window);
+        let request = build_signed_request_p(order, recv_window)?;
+        self.client.post_signed("/api/v3/order", &request).await
+    }
     
-    // pub async fn order_status(&self, osr: OrderStatusRequest) -> Result<Order> {
-    //     let recv_window = osr.recv_window.unwrap_or(self.recv_window);
-    //     let request = build_signed_request_p(osr, recv_window)?;
-    //     self.client.get_signed("/api/v3/order", &request).await
+    pub async fn order_status(&self, osr: OrderStatusRequest) -> Result<Order> {
+        let recv_window = osr.recv_window.unwrap_or(self.recv_window);
+        let request = build_signed_request_p(osr, recv_window)?;
+        self.client.get_signed("/api/v3/order", &request).await
+    }
+
+    // pub async fn place_order(&self, _order: OrderRequest) -> Result<Transaction> {
+
+    //     // Simulate creating a transaction
+    //     let transaction = Transaction {
+    //         symbol: "BTCUSDT".to_string(),
+    //         order_id: 123456,
+    //         client_order_id: "dummy_client_order_id".to_string(),
+    //         transact_time: 1234567890,
+    //         price: 50000.0,
+    //         orig_qty: 0.1,
+    //         executed_qty: 0.1,
+    //         cummulative_quote_qty: 5000.0,
+    //         status: OrderStatus::Filled,
+    //         time_in_force: TimeInForce::GTC,
+    //         order_type: OrderType::Limit,
+    //         side: OrderSide::Buy,
+    //         fills: vec![], // Add dummy fills if needed
+    //     };
+
+    //     // Return the transaction wrapped in Ok
+    //     Ok(transaction)
     // }
 
-    pub async fn place_order(&self, _order: OrderRequest) -> Result<Transaction> {
-
-        // Simulate creating a transaction
-        let transaction = Transaction {
-            symbol: "BTCUSDT".to_string(),
-            order_id: 123456,
-            client_order_id: "dummy_client_order_id".to_string(),
-            transact_time: 1234567890,
-            price: 50000.0,
-            orig_qty: 0.1,
-            executed_qty: 0.1,
-            cummulative_quote_qty: 5000.0,
-            status: OrderStatus::Filled,
-            time_in_force: TimeInForce::GTC,
-            order_type: OrderType::Limit,
-            side: OrderSide::Buy,
-            fills: vec![], // Add dummy fills if needed
-        };
-
-        // Return the transaction wrapped in Ok
-        Ok(transaction)
-    }
-
-    pub async fn order_status(&self, _osr: OrderStatusRequest) -> Result<Order> {
-        let order = Order {
-            symbol: "BTCUSDT".to_string(),
-            order_id: 123456,
-            order_list_id: 0,
-            client_order_id: "dummy_client_order_id".to_string(),
-            price: 50000.0,
-            orig_qty: 0.1,
-            executed_qty: 0.1,
-            cummulative_quote_qty: 5000.0,
-            status: OrderStatus::Filled,
-            time_in_force: TimeInForce::GTC,
-            order_type: OrderType::Limit,
-            side: OrderSide::Buy,
-            stop_price: 0.0,
-            iceberg_qty: 0.0,
-            time: 1234567890,
-            update_time: 1234567890,
-            is_working: true,
-            orig_quote_order_qty: 5000.0,
-        };
-        Ok(order)
-    }
+    // pub async fn order_status(&self, _osr: OrderStatusRequest) -> Result<Order> {
+    //     let order = Order {
+    //         symbol: "BTCUSDT".to_string(),
+    //         order_id: 123456,
+    //         order_list_id: 0,
+    //         client_order_id: "dummy_client_order_id".to_string(),
+    //         price: 50000.0,
+    //         orig_qty: 0.1,
+    //         executed_qty: 0.1,
+    //         cummulative_quote_qty: 5000.0,
+    //         status: OrderStatus::Filled,
+    //         time_in_force: TimeInForce::GTC,
+    //         order_type: OrderType::Limit,
+    //         side: OrderSide::Buy,
+    //         stop_price: 0.0,
+    //         iceberg_qty: 0.0,
+    //         time: 1234567890,
+    //         update_time: 1234567890,
+    //         is_working: true,
+    //         orig_quote_order_qty: 5000.0,
+    //     };
+    //     Ok(order)
+    // }
 
     /// Get an order
     pub async fn futures_order_status(
