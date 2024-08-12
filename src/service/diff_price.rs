@@ -143,7 +143,8 @@ pub async fn get_diff_signal() {
                                     *to_price,
                                     updated.clone(),
                                     from_updated.clone(),
-                                    to_updated.clone()
+                                    to_updated.clone(),
+                                    SignalState::NotStarted
                                 ).await {
                                     error!("Failed to update arb_diff_signal: {:?}", e);
                                 } else {

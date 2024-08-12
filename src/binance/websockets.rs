@@ -107,31 +107,29 @@ impl<'a, WE: serde::de::DeserializeOwned> WebSockets<'a, WE> {
             .push(STREAM_ENDPOINT);
         url.set_query(Some(&format!("streams={}", combined_stream(endpoints))));
 
-        self.handle_connect(url).await
+        self.handle_connect(url.to_string()).await
     }
 
     /// Connect to a websocket endpoint
-    pub async fn connect(&mut self, url: Url) -> Result<()> {
+    pub async fn connect(&mut self, url: String) -> Result<()> {
         self.handle_connect(url).await
     }
 
     /// Connect to a futures websocket endpoint
     pub async fn connect_futures(&mut self, endpoint: &str) -> Result<()> {
         let wss: String = format!("{}/{}/{}", self.conf.futures_ws_endpoint, WS_ENDPOINT, endpoint);
-        let url = Url::parse(&wss)?;
 
-        self.handle_connect(url).await
+        self.handle_connect(wss).await
     }
 
     /// Connect to a futures websocket endpoint
     pub async fn connect_delivery(&mut self, endpoint: &str) -> Result<()> {
         let wss: String = format!("{}/{}/{}", self.conf.delivery_ws_endpoint, WS_ENDPOINT, endpoint);
-        let url = Url::parse(&wss)?;
 
-        self.handle_connect(url).await
+        self.handle_connect(wss).await
     }
 
-    async fn handle_connect(&mut self, url: Url) -> Result<()> {
+    async fn handle_connect(&mut self, url: String) -> Result<()> {
         match connect_async(url).await {
             Ok(answer) => {
                 self.socket = Some(answer);

@@ -27,7 +27,6 @@ use reqwest::Client;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_tungstenite::tungstenite::Message;
-use url::Url;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PriceStream {
@@ -89,10 +88,10 @@ pub async fn handle_websocket(
             Platform::Binance => {
                 let url = match market {
                     Market::Spot => {
-                        Url::parse(&C.binance_api_config.ws_spot_url).unwrap()
+                        C.binance_api_config.ws_spot_url.clone()
                     }
                     Market::Futures => {
-                        Url::parse(&C.binance_api_config.ws_futures_url).unwrap()
+                        C.binance_api_config.ws_futures_url.clone()
                     }   
                 };
                 web_socket.connect(url).await.unwrap();
@@ -100,10 +99,10 @@ pub async fn handle_websocket(
             Platform::Bybit => {
                 let (url, message) = match market {
                     Market::Spot => {
-                        (Url::parse(&C.bybit_api_config.ws_futures_url).unwrap(), Message::Text(BYBIT_MESSAGE.to_string()))
+                        (C.bybit_api_config.ws_futures_url.clone(), Message::Text(BYBIT_MESSAGE.to_string()))
                     }
                     Market::Futures => {
-                        (Url::parse(&C.bybit_api_config.ws_futures_url).unwrap(), Message::Text(BYBIT_MESSAGE.to_string()))
+                        (C.bybit_api_config.ws_futures_url.clone(), Message::Text(BYBIT_MESSAGE.to_string()))
                     } 
                 };
                 web_socket.connect(url).await.unwrap();
@@ -113,13 +112,13 @@ pub async fn handle_websocket(
                 let (url, message) = match market {
                     Market::Spot => {
                         let token = get_token().await.unwrap();
-                        let url =  &C.kucoin_api_config.ws_futures_url.replace("{token}", &token);
-                        (Url::parse(url).unwrap(), Message::Text(BYBIT_MESSAGE.to_string()))
+                        let url =  C.kucoin_api_config.ws_futures_url.replace("{token}", &token);
+                        (url, Message::Text(BYBIT_MESSAGE.to_string()))
                     }
                     Market::Futures => {
                         let token = get_token().await.unwrap();
-                        let url =  &C.kucoin_api_config.ws_futures_url.replace("{token}", &token);
-                        (Url::parse(url).unwrap(), Message::Text(KUCOIN_MESSAGE.to_string()))
+                        let url =  C.kucoin_api_config.ws_futures_url.replace("{token}", &token);
+                        (url, Message::Text(KUCOIN_MESSAGE.to_string()))
                     } 
                 };
                 web_socket.connect(url).await.unwrap();

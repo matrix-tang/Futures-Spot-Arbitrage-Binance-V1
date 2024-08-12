@@ -1,4 +1,4 @@
-use crate::{db::{self, get_db}, model};
+use crate::{db::{self, get_db}, model::{self, SignalState}};
 use rust_decimal::Decimal;
 use sqlx::{MySql, Pool, Transaction};
 
@@ -59,7 +59,7 @@ pub async fn insert_arb_coin_price(coin_price: model::ArbCoinPrice) -> anyhow::R
 }
 
 pub async fn insert_arb_diff_signal(diff_signal: model::ArbDiffSignal) -> anyhow::Result<u64> {
-    let last_insert_id = sqlx::query("INSERT INTO arb_diff_signal (symbol, from_compare, to_compare, price_diff, price_diff_rate, from_price, to_price, created, from_updated, to_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+    let last_insert_id = sqlx::query("INSERT INTO arb_diff_signal (symbol, from_compare, to_compare, price_diff, price_diff_rate, from_price, to_price, created, updated, from_updated, to_updated, state) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
         .bind(diff_signal.symbol)
         .bind(diff_signal.from_compare)
         .bind(diff_signal.to_compare)
@@ -68,27 +68,31 @@ pub async fn insert_arb_diff_signal(diff_signal: model::ArbDiffSignal) -> anyhow
         .bind(diff_signal.from_price)
         .bind(diff_signal.to_price)
         .bind(diff_signal.created)
+        .bind(diff_signal.updated)
         .bind(diff_signal.from_updated)
         .bind(diff_signal.to_updated)
+        .bind(diff_signal.state)
         .execute(db::get_db()?.database())
         .await?
         .last_insert_id();
     Ok(last_insert_id)
 }
 
-pub async fn get_arb_diff_signal_by_symbol_from_and_to_compare_v2(
-    symbol: &String,
-    from_compare: &String,
-    to_compare: &String,
+pub async fn get_arb_diff_signal_by_symbol_from_and_to_compare(
+    symbol: &str,
+    from_compare: &str,
+    to_compare: &str,
 ) -> anyhow::Result<model::ArbDiffSignal> {
+    // Ensure the 'NOT_STARTED' value is correctly specified based on your table schema
     let diff_signal = sqlx::query_as::<_, model::ArbDiffSignal>(
-        "SELECT * FROM arb_diff_signal WHERE symbol = ? AND from_compare = ? AND to_compare = ? AND state = NOT_STARTED",
+        "SELECT * FROM arb_diff_signal WHERE symbol = ? AND from_compare = ? AND to_compare = ? AND state = 'NOT_STARTED' FOR UPDATE"
     )
-        .bind(symbol)
-        .bind(from_compare)
-        .bind(to_compare)
-        .fetch_one(db::get_db()?.database())
-        .await?;
+    .bind(symbol)
+    .bind(from_compare)
+    .bind(to_compare)
+    .fetch_one(db::get_db()?.database()) // Ensure this correctly fetches the MySQL pool
+    .await?;
+
     Ok(diff_signal)
 }
 
@@ -100,11 +104,12 @@ pub async fn update_arb_diff_signal_by_id(
     to_price: Decimal,
     updated: String,
     from_updated: String,
-    to_updated: String
+    to_updated: String,
+    state: SignalState
 ) -> anyhow::Result<u64> {
     let rows = sqlx::query("UPDATE arb_diff_signal SET price_diff = ?, price_diff_rate = ?, 
                                     from_price = ?, to_price = ?, updated = ?,
-                                    from_updated = ?, to_updated = ? WHERE id = ?")
+                                    from_updated = ?, to_updated = ?, state = ? WHERE id = ?")
         .bind(price_diff)
         .bind(price_diff_rate)
         .bind(from_price)
@@ -112,59 +117,10 @@ pub async fn update_arb_diff_signal_by_id(
         .bind(updated)
         .bind(from_updated)
         .bind(to_updated)
+        .bind(state)
         .bind(id)
         .execute(db::get_db()?.database())
         .await?
         .rows_affected();
     Ok(rows)
-}
-
-// pub async fn delete_all_arb_coin_prices() -> anyhow::Result<u64> {
-//     let rows_affected = sqlx::query("DELETE FROM arb_coin_price")
-//         .execute(db::get_db()?.database())
-//         .await?
-//         .rows_affected();
-//     Ok(rows_affected)
-// }
-
-pub async fn delete_all_arb_coin_prices() -> Result<()> {
-    // let db = get_db()?;
-    // let pool = db.database();
-
-    // // Start a new transaction
-    // let mut tx = pool.begin().await?;
-    // let rows_affected = sqlx::query("DELETE FROM arb_coin_price")
-    //     .execute(&mut tx)
-    //     .await?
-    //     .rows_affected();
-    // Ok(rows_affected)
-
-    let db = get_db()?;
-        let pool = db.database();
-
-        // Start a new transaction
-        let mut tx = pool.begin().await?;
-
-        let symbol = "BTCUSDT"; // Replace with dynamic symbol as needed
-
-        // Fetch and process signals
-        let records = sqlx::query_as::<_, (i32, String)>(
-            "SELECT id, state FROM signal WHERE state = 'not started' OR state = 'open'"
-        )
-        .fetch_all(&mut tx) // Pass a mutable reference to tx
-        .await?;
-
-        for (id, state) in records {
-            // Process logic here
-            println!("Processing signal id: {}, state: {}", id, state);
-
-            // Update state to 'closed' after processing
-            sqlx::query("UPDATE signal SET state = 'closed' WHERE id = ?")
-                .bind(id)
-                .execute(&mut tx) // Pass a mutable reference to tx
-                .await?;
-        }
-
-        // Commit the transaction
-        tx.commit().await?;
 }

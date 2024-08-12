@@ -36,3 +36,4 @@ dashmap = "6.0.1"
 rocksdb = { version = "0.22.0", features = ["multi-threaded-cf"] }
 bincode = "1.3.3"
 ta = "0.5.0"
+colored = "2.1.0"
