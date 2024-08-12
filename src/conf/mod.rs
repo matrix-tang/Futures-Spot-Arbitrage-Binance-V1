@@ -1,7 +1,7 @@
 pub mod redis_key;
 pub mod ws_message;
 
-use std::fs::File;
+use std::{env, fs::File};
 use std::io::prelude::*;
 
 use lazy_static::lazy_static;
@@ -68,8 +68,13 @@ lazy_static! {
 }
 
 pub fn init_config() -> anyhow::Result<Config> {
+    let env = env::var("APP_ENV").unwrap_or_else(|_| "local".to_string());
+    let config_file = match env.as_str() {
+        "production" => "config.prod.toml",
+        _ => "config.toml",
+    };
     let config_path = env!("CARGO_MANIFEST_DIR");
-    let path = config_path.to_string() + "/config.toml";
+    let path = config_path.to_string() + "/" + config_file;
     let mut file = File::open(path)?;
     let mut str_val = String::new();
     file.read_to_string(&mut str_val)?;

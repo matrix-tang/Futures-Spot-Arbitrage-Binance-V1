@@ -49,9 +49,9 @@ async fn main() -> anyhow::Result<()> {
     let streams: Vec<BoxFuture<'static, ()>> = vec![
         Box::pin(service::set_price_data(price_rx)),
         Box::pin(service::binance_all_ticker(price_tx.clone())),
-        Box::pin(service::bybit_all_ticker(price_tx.clone())),
-        Box::pin(service::kucoin_all_ticker(price_tx.clone())),
-        Box::pin(service::get_diff_signal()),
+        // Box::pin(service::bybit_all_ticker(price_tx.clone())),
+        // Box::pin(service::kucoin_all_ticker(price_tx.clone())),
+        // Box::pin(service::get_diff_signal()),
         // Box::pin(service::range_new_strategy()), //根据arb_strategy表创建arb_strategy_ex表
         // Box::pin(service::inspect_strategy(txs.clone())), // 轮训策略
     ];
