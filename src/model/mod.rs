@@ -19,3 +19,4 @@ pub use arb_stable_coin_info::ArbStableCoinInfo;
 pub use arb_strategy::ArbStrategy;
 pub use arb_strategy_ex::ArbStrategyEx;
 pub use arb_strategy_ex_info::ArbStrategyExInfo;
+pub use arb_diff_signal::SignalState;

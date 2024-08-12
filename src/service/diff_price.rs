@@ -1,3 +1,4 @@
+use crate::model::SignalState;
 use crate::{model, sql};
 use chrono::{NaiveDateTime, Utc};
 use log::{debug, error, info};
@@ -94,67 +95,6 @@ pub async fn set_price_data(mut price_rx: UnboundedReceiver<PriceStream>) {
         }
     }
 }
-//
-// pub async fn set_price_data(mut price_rx: UnboundedReceiver<PriceStream>) {
-//     let up = (Utc::now() + Duration::hours(2)).naive_utc().to_string();
-//     loop {
-//         select! {
-//             event = price_rx.recv() => {
-//                 if let Some(stream) = event {
-//                     for ticker in stream.tickers {
-//                         if ticker.current_close.is_none() {
-//                             continue;
-//                         }
-//                         let symbol = ticker.symbol.clone();
-//                         let price = Decimal::from_str(&ticker.current_close.unwrap()).unwrap();
-//                         let market = stream.market.clone();
-//                         let platform = stream.platform.clone();
-//                         let updated = (Utc::now() + Duration::hours(2)).naive_utc().to_string();
-//                         // Check if the record exists
-//                         if let Ok(existing_record) = sql::get_arb_coin_price_by_symbol(&symbol).await {
-//
-//                             let (spot_price, future_price) = match market {
-//                                 Market::Spot => (price, existing_record.future_price.clone()),
-//                                 Market::Futures => (existing_record.spot_price.clone(), price),
-//                                 _ => (existing_record.spot_price.clone(), existing_record.future_price.clone()), // Default case, should not happen
-//                             };
-//                             // Update the existing record
-//                             if let Err(e) = sql::update_arb_coin_price_by_id(
-//                                 existing_record.id,
-//                                 spot_price,
-//                                 future_price,
-//                                 updated.clone(),
-//                             ).await {
-//                                 error!("{:?}", e);
-//                             }
-//                         } else {
-//                             let (spot_price, future_price) = match market {
-//                                 Market::Spot => (price, Decimal::ZERO),
-//                                 Market::Futures => (Decimal::ZERO, price),
-//                                 _ => (Decimal::ZERO, Decimal::ZERO), // Default case, should not happen
-//                             };
-//                             // Insert a new record
-//                             if let Err(e) = sql::insert_arb_coin_price(
-//                                 model::ArbCoinPrice {
-//                                     id: 0,
-//                                     platform: platform.as_str().parse().unwrap(),
-//                                     symbol,
-//                                     spot_price,
-//                                     future_price,
-//                                     created: updated.clone(),
-//                                     updated,
-//                                     bak: None
-//                                 }
-//                             ).await {
-//                                 error!("{:?}", e);
-//                             }
-//                         }
-//                     }
-//                 }
-//             },
-//         }
-//     }
-// }
 
 pub async fn get_diff_signal() {
     loop {
@@ -201,6 +141,7 @@ pub async fn get_diff_signal() {
                                     price_diff_rate,
                                     *from_price,
                                     *to_price,
+                                    updated.clone(),
                                     from_updated.clone(),
                                     to_updated.clone()
                                 ).await {
@@ -225,8 +166,10 @@ pub async fn get_diff_signal() {
                                         from_price: *from_price,
                                         to_price: *to_price,
                                         created: updated.clone(),
+                                        updated: updated.clone(),
                                         from_updated: from_updated.clone(),
-                                        to_updated: to_updated.clone()
+                                        to_updated: to_updated.clone(),
+                                        state: SignalState::NotStarted,
                                     }
                                 ).await {
                                     error!("Failed to insert new arb_diff_signal: {:?}", e);
