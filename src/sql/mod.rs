@@ -10,6 +10,7 @@ pub use diff_signal::update_arb_coin_price_by_id;
 pub use diff_signal::get_all_arb_coin_prices;
 pub use diff_signal::get_arb_coin_price_by_symbol;
 pub use diff_signal::get_arb_diff_signal_by_symbol_from_and_to_compare;
+pub use diff_signal::delete_all_arb_coin_prices;
 pub use diff_rate::get_arb_diff_rate_info_by_diff_rate_id;
 pub use diff_rate::get_arb_diff_rate_list_by_diff_status;
 pub use diff_rate::insert_arb_diff_rate_his;

@@ -3,6 +3,7 @@ extern crate tokio;
 
 use arbitrage::conf;
 use arbitrage::service::PriceStream;
+use arbitrage::sql::delete_all_arb_coin_prices;
 use arbitrage::{db, helper, service};
 use futures::future::BoxFuture;
 use log::warn;
@@ -13,6 +14,9 @@ async fn main() -> anyhow::Result<()> {
     lazy_static::initialize(&conf::C);
     // 初始化Db
     db::init_env().await?;
+    
+    // Call the delete_all_arb_coin_prices function
+    delete_all_arb_coin_prices().await?;
     // 初始化日志
     helper::log::init_log();
 

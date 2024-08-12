@@ -115,3 +115,11 @@ pub async fn update_arb_diff_signal_by_id(
         .rows_affected();
     Ok(rows)
 }
+
+pub async fn delete_all_arb_coin_prices() -> anyhow::Result<u64> {
+    let rows_affected = sqlx::query("DELETE FROM arb_coin_price")
+        .execute(db::get_db()?.database())
+        .await?
+        .rows_affected();
+    Ok(rows_affected)
+}
