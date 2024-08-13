@@ -13,6 +13,7 @@ pub use binance_strategy::range_new_strategy;
 pub use diff_rate::set_binance_diff_rate;
 pub use price::get_binance_price;
 pub use price::set_binance_price;
+use serde_json::Error;
 pub use stable_coin_hedging::event_stable_coin_start;
 pub use stable_coin_hedging::inspect_stable_coin;
 

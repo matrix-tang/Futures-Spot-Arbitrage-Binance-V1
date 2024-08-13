@@ -86,7 +86,7 @@ impl From<Box<KucoinTickerMessage>> for BinanceTickerEvent {
                 }
                 symbol
             },
-            current_close: Some(((kucoin_event.data.bestAskPrice + kucoin_event.data.bestBidPrice )/2.0).to_string()),
+            current_close: Some(((kucoin_event.data.best_ask_price.parse::<f64>().unwrap() + kucoin_event.data.best_bid_price.parse::<f64>().unwrap() )/2.0).to_string()),
             open: None,
             high: None,
             low: None,
@@ -159,24 +159,25 @@ impl Market {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KucoinTickerData {
     symbol: String,
     sequence: u64,
-    bestBidSize: u64,
-    bestBidPrice: f64,
-    bestAskPrice: f64,
-    bestAskSize: u64,
+    best_bid_size: u64,
+    best_bid_price: String,
+    best_ask_price: String,
+    best_ask_size: u64,
     ts: u64,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
+// #[serde(rename_all = "camelCase")]
 pub struct KucoinTickerMessage {
     topic: String,
     r#type: String,
     subject: String,
     sn: u64,
-    data: KucoinTickerData,
+    data: KucoinTickerData
 }
 
 // #[derive(Debug, Deserialize, Serialize)]
