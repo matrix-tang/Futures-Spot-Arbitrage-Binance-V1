@@ -86,7 +86,7 @@ impl From<Box<KucoinTickerMessage>> for BinanceTickerEvent {
                 }
                 symbol
             },
-            current_close: kucoin_event.data.mark_price.map(|value| value.to_string()),
+            current_close: Some(((kucoin_event.data.bestAskPrice + kucoin_event.data.bestBidPrice )/2.0).to_string()),
             open: None,
             high: None,
             low: None,
@@ -158,24 +158,35 @@ impl Market {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct KucoinTickerData {
     symbol: String,
-    mark_price: Option<f64>,
-    index_price: Option<f64>,
-    granularity: Option<u64>,
-    funding_rate: Option<f64>,
-    timestamp: u64,
+    sequence: u64,
+    bestBidSize: u64,
+    bestBidPrice: f64,
+    bestAskPrice: f64,
+    bestAskSize: u64,
+    ts: u64,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KucoinTickerMessage {
     topic: String,
-    r#type: String,  // `type` is a reserved keyword, so use `r#type`
-    data: KucoinTickerData,
+    r#type: String,
     subject: String,
+    sn: u64,
+    data: KucoinTickerData,
 }
+
+// #[derive(Debug, Deserialize, Serialize)]
+// pub struct KucoinTickerMessage {
+//     topic: String,
+//     r#type: String,  // `type` is a reserved keyword, so use `r#type`
+//     data: KucoinTickerData,
+//     subject: String,
+//     sn : Option<f64>
+// }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct WelcomeMessage {

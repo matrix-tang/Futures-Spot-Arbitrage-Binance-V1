@@ -19,7 +19,10 @@ pub use stable_coin_hedging::inspect_stable_coin;
 use crate::binance::websockets::*;
 use crate::binance::ws_model::*;
 use crate::conf::ws_message::BYBIT_MESSAGE;
-use crate::conf::ws_message::KUCOIN_MESSAGE;
+use crate::conf::ws_message::KUCOIN_MESSAGE_1;
+use crate::conf::ws_message::KUCOIN_MESSAGE_2;
+use crate::conf::ws_message::KUCOIN_MESSAGE_3;
+use crate::conf::ws_message::KUCOIN_MESSAGE_4;
 use crate::conf::C;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
@@ -50,6 +53,7 @@ pub async fn handle_websocket(
     market: Market,
     price_tx: UnboundedSender<PriceStream>,
     keep_running: &AtomicBool,
+    message_index : i32
 ) {
     loop {
         let mut web_socket: WebSockets<'_, WebSocketEvent> = WebSockets::new(|event: WebSocketEvent| {
@@ -118,7 +122,19 @@ pub async fn handle_websocket(
                     Market::Futures => {
                         let token = get_token().await.unwrap();
                         let url =  C.kucoin_api_config.ws_futures_url.replace("{token}", &token);
-                        (url, Message::Text(KUCOIN_MESSAGE.to_string()))
+                        const KUCOIN_MESSAGES: [&str; 4] = [
+                                    KUCOIN_MESSAGE_1,
+                                    KUCOIN_MESSAGE_2,
+                                    KUCOIN_MESSAGE_3,
+                                    KUCOIN_MESSAGE_4,
+                                ];
+                        let message = Message::Text(
+                            KUCOIN_MESSAGES
+                                .get((message_index - 1) as usize)
+                                .unwrap_or(&KUCOIN_MESSAGE_1)
+                                .to_string(),
+                        );
+                        (url, message)
                     } 
                 };
                 web_socket.connect(url).await.unwrap();
@@ -142,7 +158,7 @@ pub async fn handle_websocket(
 pub async fn binance_all_ticker(price_tx: UnboundedSender<PriceStream>) {
     let keep_running = AtomicBool::new(true);
     tokio::join!(
-        handle_websocket(Platform::Binance, Market::Futures, price_tx, &keep_running)
+        handle_websocket(Platform::Binance, Market::Futures, price_tx, &keep_running, 1)
     );
 }
 
@@ -151,7 +167,7 @@ pub async fn binance_all_ticker(price_tx: UnboundedSender<PriceStream>) {
 pub async fn bybit_all_ticker(price_tx: UnboundedSender<PriceStream>) {
     let keep_running = AtomicBool::new(true);
     tokio::join!(
-        handle_websocket(Platform::Bybit, Market::Futures, price_tx, &keep_running)
+        handle_websocket(Platform::Bybit, Market::Futures, price_tx, &keep_running, 1)
     );
 }
 
@@ -160,6 +176,10 @@ pub async fn bybit_all_ticker(price_tx: UnboundedSender<PriceStream>) {
 pub async fn kucoin_all_ticker(price_tx: UnboundedSender<PriceStream>) {
     let keep_running = AtomicBool::new(true);
     tokio::join!(
-        handle_websocket(Platform::Kucoin, Market::Futures, price_tx, &keep_running)
+        handle_websocket(Platform::Kucoin, Market::Futures, price_tx.clone(), &keep_running, 1),
+        handle_websocket(Platform::Kucoin, Market::Futures, price_tx.clone(), &keep_running, 2),
+        handle_websocket(Platform::Kucoin, Market::Futures, price_tx.clone(), &keep_running, 3),
+        handle_websocket(Platform::Kucoin, Market::Futures, price_tx.clone(), &keep_running, 4)
     );
+    
 }
