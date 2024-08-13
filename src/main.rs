@@ -3,17 +3,20 @@ extern crate tokio;
 
 use arbitrage::conf;
 use arbitrage::service::PriceStream;
+use arbitrage::sql::delete_all_arb_coin_prices;
 use arbitrage::{db, helper, service};
 use futures::future::BoxFuture;
 use log::warn;
 use std::collections::HashMap;
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // 初始化配置文件
     lazy_static::initialize(&conf::C);
     // 初始化Db
     db::init_env().await?;
+    
+    // Call the delete_all_arb_coin_prices function
+    delete_all_arb_coin_prices().await?;
     // 初始化日志
     helper::log::init_log();
 
@@ -27,7 +30,6 @@ async fn main() -> anyhow::Result<()> {
             }
         }
     });
-
     // 线程池通道
     let mut txs = HashMap::new();
     let mut rxs = HashMap::new();
@@ -37,21 +39,32 @@ async fn main() -> anyhow::Result<()> {
         rxs.insert(i, rx);
     }
 
+    // let funding_rate_json = r#"{"topic":"/contract/instrument:ALL","type":"message","subject":"funding.rate","data":{"symbol":"IDUSDTM","granularity":60000,"fundingRate":-0.000880,"timestamp":1722976560000}}"#;
+    // match serde_json::from_str::<WebSocketEvent>(funding_rate_json) {
+    //     Ok(event) => match event {
+    //         WebSocketEvent::KucoinTicker(funding_rate_message) => {
+    //             println!("Received Funding Rate Message: {:?}", funding_rate_message);
+    //         }
+    //         // Handle other variants if needed
+    //         _ => println!("Received a different type of WebSocket event."),
+    //     },
+    //     Err(e) => println!("Failed to deserialize JSON: {}", e),
+    // }
     let streams: Vec<BoxFuture<'static, ()>> = vec![
-        Box::pin(service::set_binance_price(price_rx)),
-        Box::pin(service::spot_all_ticker(price_tx.clone())),
-        Box::pin(service::futures_all_ticker(price_tx.clone())),
-        Box::pin(service::delivery_all_ticker(price_tx.clone())),
-        Box::pin(service::set_binance_diff_rate()),
-        Box::pin(service::range_new_strategy()), //根据arb_strategy表创建arb_strategy_ex表
-        Box::pin(service::inspect_strategy(txs.clone())), // 轮训策略
+        Box::pin(service::set_price_data(price_rx)),
+        Box::pin(service::binance_all_ticker(price_tx.clone())),
+        Box::pin(service::bybit_all_ticker(price_tx.clone())),
+        Box::pin(service::kucoin_all_ticker(price_tx.clone())),
+        Box::pin(service::get_diff_signal()),
+        // Box::pin(service::range_new_strategy()), //根据arb_strategy表创建arb_strategy_ex表
+        // Box::pin(service::inspect_strategy(txs.clone())), // 轮训策略
     ];
 
     for stream in streams {
         tokio::spawn(stream);
     }
 
-    // 开始线程池
+    //开始线程池
     service::event_start(rxs).await;
 
     select! {
@@ -65,3 +78,7 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+
+
+

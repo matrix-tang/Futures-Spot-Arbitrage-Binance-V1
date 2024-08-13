@@ -1,6 +1,5 @@
 use crate::conf::C;
 use chrono::Local;
-use env_logger::fmt::Color;
 use env_logger::Env;
 use log::LevelFilter;
 use std::fs::File;
@@ -24,27 +23,20 @@ pub fn init_log() {
 
     env_logger::Builder::from_env(env)
         .format(|buf, record| {
-            let level_color = match record.level() {
-                log::Level::Error => Color::Red,
-                log::Level::Warn => Color::Yellow,
-                log::Level::Info => Color::Green,
-                log::Level::Debug | log::Level::Trace => Color::Cyan,
-            };
-
-            let mut level_style = buf.style();
-            level_style.set_color(level_color).set_bold(true);
-
-            let mut style = buf.style();
-            style.set_color(Color::White).set_dimmed(true);
+            let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S%.f").to_string();
+            let level = record.level();
+            let module = record.module_path().unwrap_or("<unnamed>");
+            let line = record.line().unwrap_or(0);
+            let message = record.args();
 
             writeln!(
                 buf,
-                "{} {} [ {}:{} ] {}",
-                Local::now().format("%Y-%m-%d %H:%M:%S%.f"),
-                level_style.value(record.level()),
-                style.value(record.module_path().unwrap_or("<unnamed>")),
-                record.line().unwrap_or(0),
-                record.args()
+                "{} [{}] [{}:{}] {}",
+                timestamp,
+                level,
+                module,
+                line,
+                message
             )
         })
         .target(target)

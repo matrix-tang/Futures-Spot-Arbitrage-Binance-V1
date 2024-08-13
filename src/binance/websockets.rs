@@ -1,8 +1,10 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use futures::StreamExt;
+use futures::{SinkExt, StreamExt};
+use log::error;
 use serde_json::from_str;
 use tokio::net::TcpStream;
+use tokio::time::{self, Duration};
 use tokio_tungstenite::tungstenite::handshake::client::Response;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::WebSocketStream;
@@ -105,40 +107,45 @@ impl<'a, WE: serde::de::DeserializeOwned> WebSockets<'a, WE> {
             .push(STREAM_ENDPOINT);
         url.set_query(Some(&format!("streams={}", combined_stream(endpoints))));
 
-        self.handle_connect(url).await
+        self.handle_connect(url.to_string()).await
     }
 
     /// Connect to a websocket endpoint
-    pub async fn connect(&mut self, endpoint: &str) -> Result<()> {
-        let wss: String = format!("{}/{}/{}", self.conf.ws_endpoint, WS_ENDPOINT, endpoint);
-        let url = Url::parse(&wss)?;
-
+    pub async fn connect(&mut self, url: String) -> Result<()> {
         self.handle_connect(url).await
     }
 
     /// Connect to a futures websocket endpoint
     pub async fn connect_futures(&mut self, endpoint: &str) -> Result<()> {
         let wss: String = format!("{}/{}/{}", self.conf.futures_ws_endpoint, WS_ENDPOINT, endpoint);
-        let url = Url::parse(&wss)?;
 
-        self.handle_connect(url).await
+        self.handle_connect(wss).await
     }
 
     /// Connect to a futures websocket endpoint
     pub async fn connect_delivery(&mut self, endpoint: &str) -> Result<()> {
         let wss: String = format!("{}/{}/{}", self.conf.delivery_ws_endpoint, WS_ENDPOINT, endpoint);
-        let url = Url::parse(&wss)?;
 
-        self.handle_connect(url).await
+        self.handle_connect(wss).await
     }
 
-    async fn handle_connect(&mut self, url: Url) -> Result<()> {
+    async fn handle_connect(&mut self, url: String) -> Result<()> {
         match connect_async(url).await {
             Ok(answer) => {
                 self.socket = Some(answer);
                 Ok(())
             }
             Err(e) => Err(Error::Msg(format!("Error during handshake {e}"))),
+        }
+    }
+
+    /// Send a message to the WebSocket
+    pub async fn send_message(&mut self, message: Message) -> Result<()> {
+        if let Some((ref mut socket, _)) = self.socket {
+            socket.send(message).await?;
+            Ok(())
+        } else {
+            Err(Error::Msg("WebSocket connection is not established".to_string()))
         }
     }
 
@@ -155,26 +162,64 @@ impl<'a, WE: serde::de::DeserializeOwned> WebSockets<'a, WE> {
     pub fn socket(&self) -> &Option<(WebSocketStream<MaybeTlsStream<TcpStream>>, Response)> { &self.socket }
 
     pub async fn event_loop(&mut self, running: &AtomicBool) -> Result<()> {
+        let timeout_duration = Duration::from_secs(600); // 10 minutes
+        let mut last_message_time;
         while running.load(Ordering::Relaxed) {
             if let Some((ref mut socket, _)) = self.socket {
-                // TODO: return error instead of panic?
-                let message = socket.next().await.unwrap()?;
-
-                match message {
-                    Message::Text(msg) => {
-                        if msg.is_empty() {
-                            return Ok(());
+                let timeout = time::timeout(timeout_duration, socket.next()).await;
+                match timeout {
+                    Ok(Some(Ok(message))) => {
+                        last_message_time = time::Instant::now();
+                        match message {
+                            Message::Text(msg) => {
+                                if msg.is_empty() {
+                                    return Ok(());
+                                }
+                                match from_str::<WE>(msg.as_str()) {
+                                    Ok(event) => {
+                                        if let Err(e) = (self.handler)(event) {
+                                            error!("Handler error: {:?}", e);
+                                        }
+                                    }
+                                    Err(e) => {
+                                        error!("Failed to parse message: {:?}", e);
+                                    }
+                                }
+                            }
+                            Message::Ping(_) | Message::Pong(_) | Message::Binary(_) | Message::Frame(_) => {}
+                            Message::Close(e) => {
+                                return Err(Error::Msg(format!("Disconnected {e:?}")));
+                            }
                         }
-                        let event: WE = from_str(msg.as_str())?;
-                        (self.handler)(event)?;
                     }
-                    Message::Ping(_) | Message::Pong(_) | Message::Binary(_) | Message::Frame(_) => {}
-                    Message::Close(e) => {
-                        return Err(Error::Msg(format!("Disconnected {e:?}")));
+                    Ok(Some(Err(e))) => {
+                        error!("WebSocket error: {e}");
+                        return Err(Error::Msg(format!("Disconnected")));
                     }
+                    Ok(None) => {
+                        error!("WebSocket closed");
+                        return Err(Error::Msg(format!("Disconnected")));
+                    }
+                    Err(_) => {
+                        return Err(Error::Msg(format!("Disconnected, No data received in last 10 mins")));
+                    }
+                }
+                if last_message_time.elapsed() >= timeout_duration {
+                    error!("No data received in 10 minutes, restarting WebSocket");
+                    break;
                 }
             }
         }
         Ok(())
+    }
+
+
+}
+impl<'a, WE: serde::de::DeserializeOwned> WebSockets<'a, WE> {
+    // Other methods...
+
+    /// Check if the WebSocket is closed
+    pub fn is_closed(&self) -> bool {
+        self.socket.is_none()
     }
 }

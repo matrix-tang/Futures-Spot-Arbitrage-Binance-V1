@@ -25,7 +25,7 @@ pub async fn set_binance_diff_rate() {
                     .await
                     {
                         if let Ok(price) =
-                            Decimal::from_str(from_price_info.ticker.current_close.as_str())
+                            Decimal::from_str(from_price_info.ticker.current_close.unwrap().as_str())
                         {
                             from_price = price;
                         }
@@ -38,7 +38,7 @@ pub async fn set_binance_diff_rate() {
                     .await
                     {
                         if let Ok(price) =
-                            Decimal::from_str(to_price_info.ticker.current_close.as_str())
+                            Decimal::from_str(to_price_info.ticker.current_close.unwrap().as_str())
                         {
                             to_price = price;
                         }

@@ -1,0 +1,31 @@
+[redis]
+url = "redis://127.0.0.1:6379/"
+
+[mysql]
+url = "mysql://tesseract:Tess@123@127.0.0.1:3306/arbitrage"
+
+[rocksdb]
+path = "rocksdb"
+
+[binance_api_config]
+ws_futures_url = "wss://fstream.binance.com/ws/!miniTicker@arr"
+ws_spot_url = "wss://stream.binance.com:9443/ws/!miniTicker@arr"
+api_key = "h17wiXXf4hgV0mLXogb0i2A0KegNJL5SSofOfcNMtO6LT786hUjfZ4qb4Nw9lzVs"
+secret_key = "V2dY3N6X2QhnqNSnth0zOggy1Er4rw44chX8YcNynhxd5j9ZMwy5HYPlZV3AFfrq"
+
+[bybit_api_config]
+ws_futures_url = "wss://stream.bybit.com/contract/usdt/public/v3"
+api_key = ""
+secret_key = ""
+
+[kucoin_api_config]
+ws_futures_url = "wss://ws-api.kucoin.com/endpoint?token={token}"
+api_key = ""
+secret_key = ""
+
+[log]
+pattern = "console"
+dir = "logs"
+prefix = "arb.log"
+level = "INFO"
+
